@@ -1,5 +1,6 @@
 #![allow(unused)]
 
+use agent::Agent;
 use std::{collections::HashMap, error::Error, path::Path};
 
 mod agent;
@@ -12,6 +13,25 @@ mod waypoint;
 enum SpaceTradersError {
     #[error("{0}")]
     RegisterAgentExistsError(String),
+}
+
+#[derive(serde::Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct ErrorInnerData {
+    symbol: Vec<String>,
+}
+
+#[derive(serde::Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+enum ResponseData<T> {
+    Data(T),
+
+    #[serde(rename_all = "camelCase")]
+    Error {
+        message: String,
+        code: i32,
+        data: ErrorInnerData,
+    },
 }
 
 type STRes<T> = Result<T, Box<dyn Error>>;
@@ -56,6 +76,7 @@ impl SpaceTradersClient {
         }
     }
 
+    // FIXME: callsign can't be more than 14 chars
     pub async fn register_callsign(&mut self, callsign: &str) -> STRes<()> {
         use reqwest::header::{HeaderName, HeaderValue, CONTENT_TYPE};
 
@@ -78,26 +99,7 @@ impl SpaceTradersClient {
         // dbg!(res.status());
         // dbg!(&res.text().await?);
 
-        #[derive(serde::Deserialize, Debug)]
-        #[serde(rename_all = "camelCase")]
-        struct ErrorInnerData {
-            symbol: Vec<String>,
-        }
-
-        #[derive(serde::Deserialize, Debug)]
-        #[serde(rename_all = "camelCase")]
-        enum ResponseData {
-            Data(SpaceTradersClient),
-
-            #[serde(rename_all = "camelCase")]
-            Error {
-                message: String,
-                code: i32,
-                data: ErrorInnerData,
-            },
-        }
-
-        match res.json::<ResponseData>().await? {
+        match res.json::<ResponseData<SpaceTradersClient>>().await? {
             ResponseData::Data(d) => {
                 self.access_token = d.access_token;
                 self.agent = d.agent;
@@ -129,6 +131,41 @@ impl SpaceTradersClient {
         secrets.write_all(file_contents.as_bytes())?;
 
         Ok(())
+    }
+
+    // FIXME: Can only be called after a token is set!
+    pub async fn query_agent(&self) -> STRes<Agent> {
+        if let Some(agent) = &self.agent {
+            Ok(agent.clone())
+        } else {
+            use reqwest::header::{
+                HeaderMap, HeaderName, HeaderValue, AUTHORIZATION, CONTENT_LENGTH, CONTENT_TYPE,
+            };
+
+            const URL: &str = "https://api.spacetraders.io/v2/my/agent";
+            let header: (HeaderName, HeaderValue) = (
+                AUTHORIZATION,
+                HeaderValue::from_str(&format!("Bearer {}", self.access_token.as_ref().unwrap()))
+                    .unwrap(),
+            );
+
+            let mut headers = HeaderMap::new();
+            headers.insert(
+                AUTHORIZATION,
+                HeaderValue::from_str(&format!("Bearer {}", self.access_token.as_ref().unwrap()))
+                    .unwrap(),
+            );
+
+            // Send request
+            let res = self.client.get(URL).headers(headers).send().await?;
+
+            match res.json::<ResponseData<Agent>>().await? {
+                ResponseData::Data(d) => Ok(d),
+                ResponseData::Error { data, .. } => Err(Box::new(
+                    SpaceTradersError::RegisterAgentExistsError(data.symbol[0].to_owned()),
+                )),
+            }
+        }
     }
 
     fn query_waypoint(&self, system_symbol: &str, waypoint_symbol: &str) {
@@ -165,5 +202,19 @@ mod tests {
 
         // TODO: Check for default values!!!!
         dbg!(st_client);
+    }
+
+    #[tokio::test]
+    async fn can_query_agent() {
+        use dotenv::dotenv;
+        dotenv().ok();
+
+        let token = std::env::var("token").expect("token not found");
+
+        let st_client = SpaceTradersClient::initialize_with_token(&token);
+
+        let agent = st_client.query_agent().await;
+
+        dbg!(agent);
     }
 }
