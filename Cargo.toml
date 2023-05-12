@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dev-dependencies]
+uuid = { version = "1.3.2", features = ["v4", "fast-rng"] }
 tokio = { version = "1.28.0", features = ["full"] }
 tokio-test = "0.4.2"
 dotenv = "0.15.0"

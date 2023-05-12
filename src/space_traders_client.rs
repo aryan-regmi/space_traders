@@ -259,16 +259,11 @@ mod tests {
     use super::*;
 
     fn gen_callsign() -> String {
-        use std::time::Instant;
+        use uuid::Uuid;
 
-        let t1 = Instant::now();
-        let t2 = Instant::now();
+        let callsign = Uuid::new_v4();
 
-        format!(
-            "{}TEST{}",
-            t1.elapsed().subsec_nanos(),
-            t2.elapsed().subsec_nanos()
-        )
+        callsign.to_string().get(0..13).unwrap().to_uppercase()
     }
 
     fn check_default_values(cache: CachedInfo, callsign: &str) {
@@ -493,11 +488,6 @@ mod tests {
 
     #[tokio::test]
     async fn can_register_agent() {
-        use std::{thread, time::Duration};
-
-        // Sleep so gen_callsign() generates a different callsign from other tests
-        thread::sleep(Duration::from_millis(10));
-
         let callsign = gen_callsign();
 
         let mut client = SpaceTradersClient::default();
@@ -510,11 +500,6 @@ mod tests {
 
     #[tokio::test]
     async fn can_save_and_load_client() {
-        use std::{thread, time::Duration};
-
-        // Sleep so gen_callsign() generates a different callsign from other tests
-        thread::sleep(Duration::from_millis(5));
-
         let callsign = gen_callsign();
 
         let mut client = SpaceTradersClient::default();
