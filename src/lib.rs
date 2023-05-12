@@ -1,6 +1,9 @@
 #![allow(unused)]
 
 use agent::Agent;
+use faction::FactionSymbol;
+use serde::{de::value::StringDeserializer, Serialize};
+use serde_json::value::Serializer;
 use std::{collections::HashMap, path::Path};
 
 mod agent;
@@ -26,6 +29,9 @@ pub enum SpaceTradersError {
 
     #[error("FileError: {0}")]
     FileError(#[from] std::io::Error),
+
+    #[error("SerializeError: {0}")]
+    SerdeJsonError(#[from] serde_json::Error),
 }
 
 #[derive(serde::Deserialize, Debug)]
@@ -100,8 +106,11 @@ impl SpaceTradersClient {
         }
     }
 
-    // TODO: Add faction parameter to choose the proper faction
-    pub async fn register_callsign(&mut self, callsign: &str) -> STResult<()> {
+    pub async fn register_callsign(
+        &mut self,
+        callsign: &str,
+        faction: Option<FactionSymbol>,
+    ) -> STResult<()> {
         use reqwest::header::{HeaderName, CONTENT_TYPE};
 
         let clen = callsign.len();
@@ -114,7 +123,11 @@ impl SpaceTradersClient {
 
         let mut data = HashMap::with_capacity(1);
         data.insert("symbol", callsign);
-        data.insert("faction", "COSMIC");
+        if let Some(faction) = faction {
+            data.insert("faction", faction.as_str());
+        } else {
+            data.insert("faction", "COSMIC");
+        }
 
         // Send request
         let res = self
@@ -238,7 +251,7 @@ mod tests {
         };
 
         let mut st_client = SpaceTradersClient::new();
-        st_client.register_callsign(&callsign).await.unwrap();
+        st_client.register_callsign(&callsign, None).await.unwrap();
 
         dbg!(&st_client);
 

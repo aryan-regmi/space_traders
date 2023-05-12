@@ -10,14 +10,26 @@ pub(crate) struct Faction {
     traits: Vec<Trait>,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub(crate) enum FactionSymbol {
+pub enum FactionSymbol {
     Cosmic,
     Void,
     Galactic,
     Quantum,
     Dominion,
+}
+
+impl FactionSymbol {
+    pub(crate) fn as_str(&self) -> &'static str {
+        match self {
+            FactionSymbol::Cosmic => "COSMIC",
+            FactionSymbol::Void => "VOID",
+            FactionSymbol::Galactic => "GALACTIC",
+            FactionSymbol::Quantum => "QUANTUM",
+            FactionSymbol::Dominion => "DOMINION",
+        }
+    }
 }
 
 #[derive(serde::Deserialize, Debug)]
