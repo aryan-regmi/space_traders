@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"struct":[["SpaceTradersClient","The client used to interact with the `SpaceTraders API`."]]};
