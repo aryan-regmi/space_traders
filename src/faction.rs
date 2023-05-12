@@ -1,19 +1,31 @@
+use crate::common::{Description, Headquarters, Name, NonEmptyString};
+
 #[derive(serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Faction {
-    symbol: String,
-    name: String,
-    description: String,
-    headquarters: String,
+    symbol: FactionSymbol,
+    name: Name,
+    description: Description,
+    headquarters: Headquarters,
     traits: Vec<Trait>,
+}
+
+#[derive(serde::Deserialize, Debug)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub(crate) enum FactionSymbol {
+    Cosmic,
+    Void,
+    Galactic,
+    Quantum,
+    Dominion,
 }
 
 #[derive(serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct Trait {
     symbol: TraitSymbol,
-    name: String,
-    description: String,
+    name: Name,
+    description: Description,
 }
 
 #[derive(serde::Deserialize, Debug)]

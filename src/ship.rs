@@ -1,9 +1,13 @@
-use crate::waypoint::WaypointType;
+use crate::{
+    common::{BoundedInt, Description, LowerBoundInt, Name, NonNegative, Symbol},
+    faction::FactionSymbol,
+    waypoint::WaypointType,
+};
 
 #[derive(serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Ship {
-    symbol: String,
+    symbol: Symbol,
     registration: Registration,
     nav: Nav,
     crew: Crew,
@@ -19,8 +23,8 @@ pub(crate) struct Ship {
 #[derive(serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct Nav {
-    system_symbol: String,
-    waypoint_symbol: String,
+    system_symbol: Symbol,
+    waypoint_symbol: Symbol,
     route: Route,
     status: Status,
     flight_mode: FlightMode,
@@ -48,23 +52,17 @@ enum FlightMode {
 struct Route {
     destination: Location,
     departure: Location,
-
-    // FIXME: Datetime string
-    departure_time: String,
-
-    // FIXME: Datetime string
-    arrival: String,
+    departure_time: chrono::DateTime<chrono::Utc>,
+    arrival: chrono::DateTime<chrono::Utc>,
 }
 
 #[derive(serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct Location {
-    symbol: String,
-
+    symbol: Symbol,
     #[serde(rename = "type")]
     waypoint_type: WaypointType,
-
-    system_symbol: String,
+    system_symbol: Symbol,
     x: i32,
     y: i32,
 }
@@ -73,15 +71,11 @@ struct Location {
 #[serde(rename_all = "camelCase")]
 struct Crew {
     current: i32,
-    capacity: i32,
     required: i32,
+    capacity: i32,
     rotation: Rotation,
-
-    // FIXME: [0,100]
-    morale: i32,
-
-    // FIXME: Non-negative
-    wages: i32,
+    morale: BoundedInt<0, 100>,
+    wages: NonNegative,
 }
 
 #[derive(serde::Deserialize, Debug)]
@@ -94,39 +88,28 @@ enum Rotation {
 #[derive(serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct Fuel {
-    // FIXME: Non-negative
-    current: i32,
-    // FIXME: Non-negative
-    capacity: i32,
+    current: NonNegative,
+    capacity: NonNegative,
     consumed: Consumed,
 }
 
 #[derive(serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct Consumed {
-    // FIXME: Non-negative
-    amount: i32,
-    // FIXME: Datetime
-    timestamp: String,
+    amount: NonNegative,
+    timestamp: chrono::DateTime<chrono::Utc>,
 }
 
 #[derive(serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct Frame {
     symbol: FrameSymbol,
-    name: String,
-    description: String,
-
-    // FIXME: [0,100]
-    condition: i32,
-
-    // FIXME: Non-negative
-    module_slots: i32,
-    // FIXME: Non-negative
-    mounting_points: i32,
-    // FIXME: Non-negative
-    fuel_capacity: i32,
-
+    name: Name,
+    description: Description,
+    condition: BoundedInt<0, 100>,
+    module_slots: NonNegative,
+    mounting_points: NonNegative,
+    fuel_capacity: NonNegative,
     requirements: Requirements,
 }
 
@@ -155,14 +138,10 @@ enum FrameSymbol {
 #[serde(rename_all = "camelCase")]
 struct Reactor {
     symbol: ReactorSymbol,
-    name: String,
-    description: String,
-
-    // FIXME: [0,100]
-    condition: i32,
-
-    // FIXME: >= 1
-    power_output: i32,
+    name: Name,
+    description: Description,
+    condition: BoundedInt<0, 100>,
+    power_output: LowerBoundInt<1>,
     requirements: Requirements,
 }
 
@@ -180,15 +159,10 @@ enum ReactorSymbol {
 #[serde(rename_all = "camelCase")]
 struct Engine {
     symbol: EngineSymbol,
-    name: String,
-    description: String,
-
-    // FIXME: [0,100]
-    condition: i32,
-
-    // FIXME: >= 1
-    speed: i32,
-
+    name: Name,
+    description: Description,
+    condition: BoundedInt<0, 100>,
+    speed: LowerBoundInt<1>,
     requirements: Requirements,
 }
 
@@ -205,12 +179,10 @@ enum EngineSymbol {
 #[serde(rename_all = "camelCase")]
 struct Module {
     symbol: ModuleSymbol,
-    // FIXME: Non-negative
-    capacity: Option<i32>,
-    // FIXME: Non-negative
-    range: Option<i32>,
-    name: String,
-    description: String,
+    capacity: Option<NonNegative>,
+    range: Option<NonNegative>,
+    name: Name,
+    description: Description,
     requirements: Requirements,
 }
 
@@ -253,10 +225,9 @@ struct Requirements {
 #[serde(rename_all = "camelCase")]
 struct Mount {
     symbol: MountSymbol,
-    name: String,
-    description: String,
-    // FIXME: Non-negative
-    strength: i32,
+    name: Name,
+    description: Description,
+    strength: NonNegative,
     deposits: Option<Vec<Deposit>>,
     requirements: Requirements,
 }
@@ -311,8 +282,8 @@ enum MountSymbol {
 #[derive(serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct Registration {
-    name: String,
-    faction_symbol: String,
+    name: Name,
+    faction_symbol: FactionSymbol,
     role: Role,
 }
 
@@ -338,19 +309,16 @@ enum Role {
 #[derive(serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct Cargo {
-    // FIXME: Non-negative
-    capacity: i32,
-    // FIXME: Non-negative
-    units: i32,
+    capacity: NonNegative,
+    units: NonNegative,
     inventory: Vec<InventoryItem>,
 }
 
 #[derive(serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct InventoryItem {
-    symbol: String,
-    name: String,
-    description: String,
-    // FIXME: >= 1
-    units: i32,
+    symbol: Symbol,
+    name: Name,
+    description: Description,
+    units: LowerBoundInt<1>,
 }

@@ -1,18 +1,19 @@
+use crate::{
+    common::{Id, NonEmptyString, Symbol},
+    faction::FactionSymbol,
+};
+
 #[derive(serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Contract {
-    id: String,
-    faction_symbol: String,
-
+    id: Id,
+    faction_symbol: FactionSymbol,
     #[serde(rename = "type")]
     contract_type: ContractType,
-
     terms: ContractTerms,
     accepted: bool,
     fulfilled: bool,
-
-    // FIXME: Turn into datetime object
-    expiration: String,
+    expiration: chrono::DateTime<chrono::Utc>,
 }
 
 #[derive(serde::Deserialize, Debug)]
@@ -26,9 +27,7 @@ enum ContractType {
 #[derive(serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct ContractTerms {
-    // FIXME: Turn into datetime object
-    deadline: String,
-
+    deadline: chrono::DateTime<chrono::Utc>,
     payment: Payment,
     deliver: Vec<DeliverInfo>,
 }
@@ -43,8 +42,8 @@ struct Payment {
 #[derive(serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct DeliverInfo {
-    trade_symbol: String,
-    destination_symbol: String,
+    trade_symbol: Symbol,
+    destination_symbol: Symbol,
     units_required: i32,
     units_fulfilled: i32,
 }

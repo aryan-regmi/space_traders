@@ -1,3 +1,5 @@
+use crate::common::NonEmptyString;
+
 #[derive(serde::Deserialize, Debug)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub(crate) enum WaypointType {
@@ -14,13 +16,11 @@ pub(crate) enum WaypointType {
 
 #[derive(serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-struct Waypoint {
-    // FIXME: Non-empty
-    symbol: String,
+pub struct Waypoint {
+    symbol: NonEmptyString,
     #[serde(rename = "type")]
     waypoint_type: WaypointType,
-    // FIXME: Non-empty
-    system_symbol: String,
+    system_symbol: NonEmptyString,
     x: i32,
     y: i32,
     orbitals: Vec<Symbol>,
@@ -112,6 +112,5 @@ enum TraitSymbols {
 struct Chart {
     waypoint_symbol: String,
     submitted_by: String,
-    // FIXME: Datetime
-    submitted_on: String,
+    submitted_on: chrono::DateTime<chrono::Utc>,
 }
