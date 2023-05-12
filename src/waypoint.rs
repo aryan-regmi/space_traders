@@ -1,4 +1,19 @@
-use crate::common::NonEmptyString;
+use crate::conditional_types::NonEmptyString;
+
+#[derive(serde::Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct Waypoint {
+    symbol: Symbol,
+    #[serde(rename = "type")]
+    waypoint_type: WaypointType,
+    system_symbol: Symbol,
+    x: i32,
+    y: i32,
+    orbitals: Vec<Symbol>,
+    faction: Option<Symbol>,
+    traits: Vec<Trait>,
+    chart: Option<Chart>,
+}
 
 #[derive(serde::Deserialize, Debug, serde::Serialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -12,21 +27,6 @@ pub(crate) enum WaypointType {
     Nebula,
     DebrisField,
     GravityWell,
-}
-
-#[derive(serde::Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct Waypoint {
-    symbol: NonEmptyString,
-    #[serde(rename = "type")]
-    waypoint_type: WaypointType,
-    system_symbol: NonEmptyString,
-    x: i32,
-    y: i32,
-    orbitals: Vec<Symbol>,
-    faction: Option<Symbol>,
-    traits: Vec<Trait>,
-    chart: Option<Chart>,
 }
 
 #[derive(serde::Deserialize, Debug)]

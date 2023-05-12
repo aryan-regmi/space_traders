@@ -1,4 +1,4 @@
-use crate::common::{Description, Headquarters, Name, NonEmptyString};
+use crate::conditional_types::{Description, Headquarters, Name, NonEmptyString};
 
 #[derive(serde::Deserialize, Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]

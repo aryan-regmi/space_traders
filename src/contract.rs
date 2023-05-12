@@ -1,5 +1,5 @@
 use crate::{
-    common::{Id, NonEmptyString, Symbol},
+    conditional_types::{Id, NonEmptyString, Symbol},
     faction::FactionSymbol,
 };
 

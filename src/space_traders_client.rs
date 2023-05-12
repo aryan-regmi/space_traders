@@ -1,10 +1,14 @@
+//! Provides the main functionality to interact with the `SpaceTraders API`.
+
 use std::collections::HashMap;
 
 use crate::{
     agent::Agent,
+    conditional_types::Symbol,
     contract::Contract,
     faction::{Faction, FactionSymbol},
     ship::Ship,
+    waypoint::Waypoint,
     ResponseData, STResult, SpaceTradersError,
 };
 
@@ -17,6 +21,7 @@ struct CachedInfo {
     ship: Ship,
 }
 
+/// The client used to interact with the `SpaceTraders API`.
 #[derive(Debug)]
 pub struct SpaceTradersClient {
     client: reqwest::Client,
@@ -28,8 +33,7 @@ pub struct SpaceTradersClient {
 impl Default for SpaceTradersClient {
     /// Initalize a client to register with.
     ///
-    /// ***NOTE:*** [register_callsign] must be called to generate a token and retrieve agent
-    /// data.
+    /// **NOTE: [register_callsign](Self::register_callsign) must be called to generate a token and get registration data.**
     fn default() -> Self {
         Self {
             client: reqwest::Client::new(),
@@ -42,7 +46,20 @@ impl Default for SpaceTradersClient {
 
 impl SpaceTradersClient {
     // TODO: Eventually add support for multiple save files
-    pub async fn load_saved() -> STResult<Self> {
+    //
+    /// Load a `SpaceTradersClient` from a save file.
+    ///
+    /// Currently, there can only be one save file (named `spacetraders.save`), though support for
+    /// multiple save files will be added in the future.
+    ///
+    ///
+    /// # Example
+    /// ```
+    /// # use space_traders::prelude::*;
+    /// // Creates SpaceTradersClient from the data saved in the "spacetraders.save" file.
+    /// let client = SpaceTradersClient::load_saved();
+    /// ```
+    pub fn load_saved() -> STResult<Self> {
         use std::fs::File;
         use std::io::BufRead;
         use std::io::BufReader;
@@ -72,7 +89,11 @@ impl SpaceTradersClient {
     }
 
     // TODO: Eventually add support for multiple save files
-    fn save_client(&self) -> STResult<()> {
+    //
+    /// Saves the `SpaceTradersClient` to a file named `spacetraders.save`.
+    ///
+    /// This data can be retrieved using [load_saved](SpaceTradersClient::load_saved).
+    pub fn save_client(&self) -> STResult<()> {
         use std::fs::File;
         use std::io::Write;
 
@@ -99,6 +120,22 @@ impl SpaceTradersClient {
         Ok(())
     }
 
+    /// Registers the given (unique) callsign with the Space Traders API.
+    ///
+    /// The response from the API is used to populate the fields of the [SpaceTradersClient].
+    ///
+    /// # Example
+    /// ```
+    /// # use space_traders::prelude::*;
+    /// # tokio_test::block_on(async {
+    /// // Creates SpaceTradersClient with the `client` field initalized.
+    /// let mut client = SpaceTradersClient::default();
+    ///
+    /// // Populates the `cache` field with values from the response.
+    /// // Note: callsign must be unique or an error is returned!
+    /// client.register_callsign("UNIQUE_SYMBOL", None).await.unwrap_err();
+    /// # })
+    /// ```
     pub async fn register_callsign(
         &mut self,
         callsign: &str,
@@ -161,6 +198,7 @@ impl SpaceTradersClient {
         }
     }
 
+    /// Get a reference to the [Agent] associated with the current client.
     pub fn agent(&self) -> STResult<&Agent> {
         if let Some(cache) = &self.cache {
             return Ok(&cache.agent);
@@ -169,12 +207,21 @@ impl SpaceTradersClient {
         Err(SpaceTradersError::EmptyCache)
     }
 
+    /// Get a mutable reference to the [Agent] associated with the current client.
     pub fn agent_mut(&mut self) -> STResult<&mut Agent> {
         if let Some(cache) = &mut self.cache {
             return Ok(&mut cache.agent);
         }
 
         Err(SpaceTradersError::EmptyCache)
+    }
+
+    pub fn view_waypoint(&self, system_symbol: Symbol, waypoint_symbol: Symbol) -> Waypoint {
+        let url = format!(
+            "https://api.spacetraders.io/v2/systems/{}/waypoints/{}",
+            *system_symbol, *waypoint_symbol
+        );
+        todo!()
     }
 }
 
@@ -450,7 +497,7 @@ mod tests {
 
         client.save_client().unwrap();
 
-        let saved_client = SpaceTradersClient::load_saved().await.unwrap();
+        let saved_client = SpaceTradersClient::load_saved().unwrap();
 
         assert_eq!(saved_client.token, client.token);
 

@@ -1,5 +1,5 @@
 use crate::{
-    common::{BoundedInt, Description, LowerBoundInt, Name, NonNegative, Symbol},
+    conditional_types::{BoundedInt, Description, LowerBoundInt, Name, NonNegative, Symbol},
     faction::FactionSymbol,
     waypoint::WaypointType,
 };

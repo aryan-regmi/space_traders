@@ -1,12 +1,12 @@
 use std::{error::Error, ops::Deref};
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize)]
-pub(crate) struct NonEmptyString(String);
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct NonEmptyString(String);
 
 impl NonEmptyString {
-    fn new(string: String) -> Result<Self, Box<dyn Error>> {
+    fn new(string: String) -> Result<Self, NonEmptyStringError> {
         if string.is_empty() {
-            return Err("`NonEmptyString` cannot be initialized with an empty string".into());
+            return Err(NonEmptyStringError::EmptyString);
         }
 
         Ok(Self(string))
@@ -22,6 +22,20 @@ impl Deref for NonEmptyString {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum NonEmptyStringError {
+    #[error("`NonEmptyString` cannot be initialized with an empty string")]
+    EmptyString,
+}
+
+impl TryFrom<String> for NonEmptyString {
+    type Error = NonEmptyStringError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::new(value)
     }
 }
 
@@ -58,11 +72,11 @@ impl<'de> serde::Deserialize<'de> for NonEmptyString {
     }
 }
 
-pub(crate) type Symbol = NonEmptyString;
-pub(crate) type Name = NonEmptyString;
-pub(crate) type Description = NonEmptyString;
-pub(crate) type Headquarters = NonEmptyString;
-pub(crate) type Id = NonEmptyString;
+pub type Symbol = NonEmptyString;
+pub type Name = NonEmptyString;
+pub type Description = NonEmptyString;
+pub type Headquarters = NonEmptyString;
+pub type Id = NonEmptyString;
 
 #[derive(Debug, serde::Serialize)]
 pub(crate) struct LowerBoundInt<const MIN: i64>(i64);
