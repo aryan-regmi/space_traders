@@ -1,4 +1,4 @@
-use crate::conditional_types::NonEmptyString;
+use crate::conditional_types::{Description, Name, NonEmptyString, Symbol};
 
 #[derive(serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -9,8 +9,8 @@ pub struct Waypoint {
     system_symbol: Symbol,
     x: i32,
     y: i32,
-    orbitals: Vec<Symbol>,
-    faction: Option<Symbol>,
+    orbitals: Vec<InnerSymbol>,
+    faction: Option<InnerSymbol>,
     traits: Vec<Trait>,
     chart: Option<Chart>,
 }
@@ -31,16 +31,16 @@ pub(crate) enum WaypointType {
 
 #[derive(serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-struct Symbol {
-    symbol: String,
+struct InnerSymbol {
+    symbol: Symbol,
 }
 
 #[derive(serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct Trait {
     symbol: TraitSymbols,
-    name: String,
-    description: String,
+    name: Name,
+    description: Description,
 }
 
 #[derive(serde::Deserialize, Debug)]
