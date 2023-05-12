@@ -1,7 +1,5 @@
 //! Provides the main functionality to interact with the `SpaceTraders API`.
 
-use std::collections::HashMap;
-
 use crate::{
     agent::Agent,
     conditional_types::Symbol,
@@ -11,6 +9,7 @@ use crate::{
     waypoint::Waypoint,
     ResponseData, STResult, SpaceTradersError,
 };
+use std::collections::HashMap;
 
 /// Values cached from initial registration
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -192,9 +191,7 @@ impl SpaceTradersClient {
 
                 Ok(())
             }
-            ResponseData::Error { data, .. } => Err(SpaceTradersError::RegisterAgentExistsError(
-                data.symbol[0].to_owned(),
-            )),
+            ResponseData::Error(err) => Err(SpaceTradersError::SpaceTradersResponseError(err)),
         }
     }
 
@@ -216,35 +213,57 @@ impl SpaceTradersClient {
         Err(SpaceTradersError::EmptyCache)
     }
 
-    pub fn view_waypoint(&self, system_symbol: Symbol, waypoint_symbol: Symbol) -> Waypoint {
+    pub async fn view_waypoint(
+        &self,
+        system_symbol: Symbol,
+        waypoint_symbol: Symbol,
+    ) -> STResult<Waypoint> {
+        use reqwest::header::AUTHORIZATION;
+
+        if !self.token_set || self.token.is_none() {
+            return Err(SpaceTradersError::TokenNotSet);
+        }
+
         let url = format!(
             "https://api.spacetraders.io/v2/systems/{}/waypoints/{}",
             *system_symbol, *waypoint_symbol
         );
-        todo!()
+
+        let header = (AUTHORIZATION, self.token.as_ref().unwrap());
+
+        // Send request
+        let res = self
+            .client
+            .get(url)
+            .header(header.0, header.1)
+            .send()
+            .await?;
+
+        match res.json::<ResponseData<Waypoint>>().await? {
+            ResponseData::Data(waypoint) => Ok(waypoint),
+            ResponseData::Error(err) => Err(SpaceTradersError::SpaceTradersResponseError(err)),
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use crate::{
         contract::ContractType,
-        faction::TraitSymbol,
+        faction::FactionTraitSymbol,
         ship::{
             Deposit, EngineSymbol, FlightMode, FrameSymbol, ModuleSymbol, MountSymbol,
             ReactorSymbol, Role, Rotation, ShipStatus,
         },
-        waypoint::WaypointType,
+        waypoint::{WaypointTraitSymbols, WaypointType},
     };
 
     use super::*;
 
     fn gen_callsign() -> String {
-        use std::thread;
-        use std::time::Duration;
         use std::time::Instant;
-
-        thread::sleep(Duration::from_millis(5));
 
         let t1 = Instant::now();
         let t2 = Instant::now();
@@ -278,16 +297,16 @@ mod tests {
         assert_eq!(faction.traits.len(), 4);
 
         let traits = faction.traits;
-        assert_eq!(traits[0].symbol, TraitSymbol::Innovative);
+        assert_eq!(traits[0].symbol, FactionTraitSymbol::Innovative);
         assert_eq!(*traits[0].name, "Innovative");
         assert_eq!(*traits[0].description, "Willing to try new and untested ideas. Sometimes able to come up with creative and original solutions to problems, and may be able to think outside the box. Sometimes at the forefront of technological or social change, and may be willing to take risks in order to advance the boundaries of human knowledge and understanding.");
-        assert_eq!(traits[1].symbol, TraitSymbol::Bold);
+        assert_eq!(traits[1].symbol, FactionTraitSymbol::Bold);
         assert_eq!(*traits[1].name, "Bold");
         assert_eq!(*traits[1].description, "Unafraid to take risks and challenge the status quo. Sometimes willing to do things that others would not dare, and may be able to overcome obstacles and challenges that would be insurmountable for others. Sometimes able to inspire and motivate others to take bold action as well.");
-        assert_eq!(traits[2].symbol, TraitSymbol::Visionary);
+        assert_eq!(traits[2].symbol, FactionTraitSymbol::Visionary);
         assert_eq!(*traits[2].name, "Visionary");
         assert_eq!(*traits[2].description, "Possessing a clear and compelling vision for the future. Sometimes able to see beyond the present and anticipate the needs and challenges of tomorrow. Sometimes able to inspire and guide others towards a better and brighter future, and may be willing to take bold and decisive action to make their vision a reality.");
-        assert_eq!(traits[3].symbol, TraitSymbol::Curious);
+        assert_eq!(traits[3].symbol, FactionTraitSymbol::Curious);
         assert_eq!(*traits[3].name, "Curious");
         assert_eq!(*traits[3].description, "Possessing a strong desire to learn and explore. Sometimes interested in a wide range of topics and may be willing to take risks in order to satisfy their curiosity. Sometimes able to think outside the box and come up with creative solutions to challenges.");
 
@@ -478,6 +497,11 @@ mod tests {
 
     #[tokio::test]
     async fn can_register_agent() {
+        use std::{thread, time::Duration};
+
+        // Sleep so gen_callsign() generates a different callsign from other tests
+        thread::sleep(Duration::from_millis(10));
+
         let callsign = gen_callsign();
 
         let mut client = SpaceTradersClient::default();
@@ -490,6 +514,11 @@ mod tests {
 
     #[tokio::test]
     async fn can_save_and_load_client() {
+        use std::{thread, time::Duration};
+
+        // Sleep so gen_callsign() generates a different callsign from other tests
+        thread::sleep(Duration::from_millis(5));
+
         let callsign = gen_callsign();
 
         let mut client = SpaceTradersClient::default();
@@ -506,5 +535,56 @@ mod tests {
         let saved_cache = saved_client.cache.unwrap();
         assert_eq!(*saved_cache.ship.symbol, *cache.ship.symbol);
         check_default_values(saved_cache, &callsign);
+    }
+
+    #[tokio::test]
+    async fn can_query_waypoint() {
+        let client = SpaceTradersClient::load_saved().unwrap();
+
+        let waypoint = client
+            .view_waypoint(
+                "X1-DF55".try_into().unwrap(),
+                "X1-DF55-20250Z".try_into().unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(*waypoint.system_symbol, "X1-DF55");
+        assert_eq!(*waypoint.symbol, "X1-DF55-20250Z");
+        assert_eq!(waypoint.waypoint_type, WaypointType::Planet);
+        assert_eq!(waypoint.x, -5);
+        assert_eq!(waypoint.y, 9);
+
+        let orbitals = waypoint.orbitals;
+        assert_eq!(orbitals.len(), 3);
+        assert_eq!(*orbitals[0].symbol, "X1-DF55-89861D");
+        assert_eq!(*orbitals[1].symbol, "X1-DF55-64862A");
+        assert_eq!(*orbitals[2].symbol, "X1-DF55-71593D");
+
+        let traits = waypoint.traits;
+        assert_eq!(traits.len(), 5);
+        assert_eq!(traits[0].symbol, WaypointTraitSymbols::Overcrowded);
+        assert_eq!(*traits[0].name, "Overcrowded");
+        assert_eq!(*traits[0].description, "A waypoint teeming with inhabitants, leading to cramped living conditions and a high demand for resources.");
+        assert_eq!(traits[1].symbol, WaypointTraitSymbols::HighTech);
+        assert_eq!(*traits[1].name, "High-Tech");
+        assert_eq!(*traits[1].description, "A center of innovation and cutting-edge technology, driving progress and attracting skilled individuals from around the galaxy.");
+        assert_eq!(traits[2].symbol, WaypointTraitSymbols::Bureaucratic);
+        assert_eq!(*traits[2].name, "Bureaucratic");
+        assert_eq!(*traits[2].description, "A waypoint governed by complex regulations, red tape, and layers of administration, often leading to inefficiencies and frustration.");
+        assert_eq!(traits[3].symbol, WaypointTraitSymbols::Temperate);
+        assert_eq!(*traits[3].name, "Temperate");
+        assert_eq!(*traits[3].description, "A world with a mild climate and balanced ecosystem, providing a comfortable environment for a variety of life forms and supporting diverse industries.");
+        assert_eq!(traits[4].symbol, WaypointTraitSymbols::Marketplace);
+        assert_eq!(*traits[4].name, "Marketplace");
+        assert_eq!(*traits[4].description, "A thriving center of commerce where traders from across the galaxy gather to buy, sell, and exchange goods.");
+
+        let chart = waypoint.chart.unwrap();
+        assert_eq!(*chart.submitted_by.unwrap(), "COSMIC");
+        let submitted_on: chrono::DateTime<chrono::Utc> =
+            chrono::DateTime::from_str("2023-01-23T17:20:36.870Z").unwrap();
+        assert_eq!(chart.submitted_on, submitted_on);
+
+        assert_eq!(waypoint.faction.unwrap().symbol, FactionSymbol::Cosmic);
     }
 }

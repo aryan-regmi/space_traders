@@ -4,16 +4,12 @@ use std::{error::Error, ops::Deref};
 pub struct NonEmptyString(String);
 
 impl NonEmptyString {
-    fn new(string: String) -> Result<Self, NonEmptyStringError> {
+    pub fn new(string: String) -> Result<Self, NonEmptyStringError> {
         if string.is_empty() {
             return Err(NonEmptyStringError::EmptyString);
         }
 
         Ok(Self(string))
-    }
-
-    pub(crate) fn as_str(&self) -> &str {
-        &self.0
     }
 }
 
@@ -36,6 +32,14 @@ impl TryFrom<String> for NonEmptyString {
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         Self::new(value)
+    }
+}
+
+impl TryFrom<&str> for NonEmptyString {
+    type Error = NonEmptyStringError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Self::new(value.to_owned())
     }
 }
 
@@ -79,10 +83,10 @@ pub type Headquarters = NonEmptyString;
 pub type Id = NonEmptyString;
 
 #[derive(Debug, serde::Serialize)]
-pub(crate) struct LowerBoundInt<const MIN: i64>(i64);
+pub struct LowerBoundInt<const MIN: i64>(i64);
 
 impl<const MIN: i64> LowerBoundInt<MIN> {
-    fn new(val: i64) -> Result<Self, Box<dyn Error>> {
+    pub fn new(val: i64) -> Result<Self, Box<dyn Error>> {
         if val < MIN {
             return Err(format!("Value must be greater than or equal to {}", MIN).into());
         }
@@ -133,10 +137,10 @@ impl<'de, const MIN: i64> serde::Deserialize<'de> for LowerBoundInt<MIN> {
 }
 
 #[derive(Debug)]
-pub(crate) struct UpperBoundInt<const MAX: i64>(i64);
+pub struct UpperBoundInt<const MAX: i64>(i64);
 
 impl<const MAX: i64> UpperBoundInt<MAX> {
-    fn new(val: i64) -> Result<Self, Box<dyn Error>> {
+    pub fn new(val: i64) -> Result<Self, Box<dyn Error>> {
         if val > MAX {
             return Err(format!("Value must be less than or equal to {}", MAX).into());
         }
@@ -249,29 +253,27 @@ mod tests {
 
     #[derive(serde::Deserialize, Debug)]
     struct Tst {
-        v1: LowerBoundInt<10>,
-        v2: UpperBoundInt<100>,
-        v3: BoundedInt<3, 5>,
+        _v1: LowerBoundInt<10>,
+        _v2: UpperBoundInt<100>,
+        _v3: BoundedInt<3, 5>,
     }
 
     #[derive(serde::Deserialize, Debug)]
     struct Tst2 {
-        v: NonEmptyString,
+        _v: NonEmptyString,
     }
 
     #[test]
     fn can_deserialize_bounded_integers() {
-        let data = r#"{"v1": 10, "v2": 100, "v3": 3}"#;
+        let data = r#"{"_v1": 10, "_v2": 100, "_v3": 3}"#;
 
-        let tst = serde_json::from_str::<Tst>(data).unwrap();
-
-        // dbg!(tst);
+        serde_json::from_str::<Tst>(data).unwrap();
     }
 
     #[test]
     fn can_deserialize_non_empty_strings() {
-        let data = r#"{"v": "1"}"#;
+        let data = r#"{"_v": "1"}"#;
 
-        let tst = serde_json::from_str::<Tst2>(data).unwrap();
+        serde_json::from_str::<Tst2>(data).unwrap();
     }
 }

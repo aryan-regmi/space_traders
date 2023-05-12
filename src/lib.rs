@@ -1,4 +1,3 @@
-#![allow(unused)]
 // TODO: Add basic examples etc to the crate docs.
 // TODO: Add README to crate docs: #[doc = include_str!("../README.md")]
 //
@@ -6,6 +5,8 @@
 //!
 //! This crate provides methods to register a new account/agent, load a saved agent, and automate
 //! various aspects of the game.
+
+use std::fmt::Display;
 
 mod contract;
 mod faction;
@@ -27,10 +28,6 @@ pub mod prelude {
 /// Represents all possible errors for the [SpaceTradersClient](space_traders_client::SpaceTradersClient).
 #[derive(thiserror::Error, Debug)]
 pub enum SpaceTradersError {
-    /// The callsign passed to [register_callsign](space_traders_client::SpaceTradersClient::register_callsign) already exists.
-    #[error("{0}")]
-    RegisterAgentExistsError(String),
-
     /// The callsign passed to [register_callsign](space_traders_client::SpaceTradersClient::register_callsign) is too
     /// short or too long.
     #[error("The callsign must be in between 3 and 14 characters")]
@@ -59,12 +56,33 @@ pub enum SpaceTradersError {
     /// The format of the savefile was incorrect, or the savefile is corrupted.
     #[error("InvalidSave: There was an error reading the savefile: {0}")]
     InvalidSave(String),
+
+    /// Errors from the SpaceTraders API.
+    #[error("SpaceTradersResponseError: There was an error with the API response: {0}")]
+    SpaceTradersResponseError(#[from] ResponseError),
 }
 
 #[derive(serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct ErrorInnerData {
-    symbol: Vec<String>,
+struct ErrorInnerData {
+    _symbol: Vec<String>,
+}
+
+#[derive(serde::Deserialize, Debug, thiserror::Error)]
+#[serde(rename_all = "camelCase")]
+pub struct ResponseError {
+    message: String,
+    code: i32,
+    data: ErrorInnerData,
+}
+
+impl Display for ResponseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!(
+            "ResponseError {{ code: {}, message: {}, data: {:?} }}",
+            self.code, self.message, self.data
+        ))
+    }
 }
 
 #[derive(serde::Deserialize, Debug)]
@@ -72,12 +90,7 @@ pub(crate) struct ErrorInnerData {
 pub(crate) enum ResponseData<T> {
     Data(T),
 
-    #[serde(rename_all = "camelCase")]
-    Error {
-        _message: String,
-        _code: i32,
-        data: ErrorInnerData,
-    },
+    Error(ResponseError),
 }
 
 pub(crate) type STResult<T> = Result<T, SpaceTradersError>;

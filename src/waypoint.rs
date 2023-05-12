@@ -1,23 +1,26 @@
-use crate::conditional_types::{Description, Name, NonEmptyString, Symbol};
+use crate::{
+    conditional_types::{Description, Name, Symbol},
+    faction::FactionSymbol,
+};
 
 #[derive(serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Waypoint {
-    symbol: Symbol,
+    pub symbol: Symbol,
     #[serde(rename = "type")]
-    waypoint_type: WaypointType,
-    system_symbol: Symbol,
-    x: i32,
-    y: i32,
-    orbitals: Vec<InnerSymbol>,
-    faction: Option<InnerSymbol>,
-    traits: Vec<Trait>,
-    chart: Option<Chart>,
+    pub waypoint_type: WaypointType,
+    pub system_symbol: Symbol,
+    pub x: i32,
+    pub y: i32,
+    pub orbitals: Vec<OrbitalSymbol>,
+    pub faction: Option<InnerFactionSymbol>,
+    pub traits: Vec<Trait>,
+    pub chart: Option<Chart>,
 }
 
 #[derive(serde::Deserialize, Debug, serde::Serialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub(crate) enum WaypointType {
+pub enum WaypointType {
     Planet,
     GasGiant,
     Moon,
@@ -31,21 +34,27 @@ pub(crate) enum WaypointType {
 
 #[derive(serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-struct InnerSymbol {
-    symbol: Symbol,
+pub struct InnerFactionSymbol {
+    pub symbol: FactionSymbol,
 }
 
 #[derive(serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-struct Trait {
-    symbol: TraitSymbols,
-    name: Name,
-    description: Description,
+pub struct OrbitalSymbol {
+    pub symbol: Symbol,
 }
 
 #[derive(serde::Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct Trait {
+    pub symbol: WaypointTraitSymbols,
+    pub name: Name,
+    pub description: Description,
+}
+
+#[derive(serde::Deserialize, Debug, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-enum TraitSymbols {
+pub enum WaypointTraitSymbols {
     Uncharted,
     Marketplace,
     Shipyard,
@@ -109,8 +118,8 @@ enum TraitSymbols {
 
 #[derive(serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-struct Chart {
-    waypoint_symbol: String,
-    submitted_by: String,
-    submitted_on: chrono::DateTime<chrono::Utc>,
+pub struct Chart {
+    pub waypoint_symbol: Option<Symbol>,
+    pub submitted_by: Option<Symbol>,
+    pub submitted_on: chrono::DateTime<chrono::Utc>,
 }

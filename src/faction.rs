@@ -1,4 +1,4 @@
-use crate::conditional_types::{Description, Headquarters, Name, NonEmptyString};
+use crate::conditional_types::{Description, Headquarters, Name};
 
 #[derive(serde::Deserialize, Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -35,14 +35,14 @@ impl FactionSymbol {
 #[derive(serde::Deserialize, Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Trait {
-    pub(crate) symbol: TraitSymbol,
+    pub(crate) symbol: FactionTraitSymbol,
     pub(crate) name: Name,
     pub(crate) description: Description,
 }
 
 #[derive(serde::Deserialize, Debug, serde::Serialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub(crate) enum TraitSymbol {
+pub(crate) enum FactionTraitSymbol {
     Bureaucratic,
     Secretive,
     Capitalistic,
