@@ -1,6 +1,6 @@
 use crate::common::{Id, NonEmptyString, Symbol};
 
-#[derive(serde::Deserialize, Debug, Clone)]
+#[derive(serde::Deserialize, Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Agent {
     pub(crate) account_id: Id,

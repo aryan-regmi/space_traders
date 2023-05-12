@@ -1,6 +1,6 @@
-use std::error::Error;
+use std::{error::Error, ops::Deref};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 pub(crate) struct NonEmptyString(String);
 
 impl NonEmptyString {
@@ -13,6 +13,14 @@ impl NonEmptyString {
     }
 
     pub(crate) fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl Deref for NonEmptyString {
+    type Target = String;
+
+    fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
@@ -56,7 +64,7 @@ pub(crate) type Description = NonEmptyString;
 pub(crate) type Headquarters = NonEmptyString;
 pub(crate) type Id = NonEmptyString;
 
-#[derive(Debug)]
+#[derive(Debug, serde::Serialize)]
 pub(crate) struct LowerBoundInt<const MIN: i64>(i64);
 
 impl<const MIN: i64> LowerBoundInt<MIN> {
@@ -66,6 +74,14 @@ impl<const MIN: i64> LowerBoundInt<MIN> {
         }
 
         Ok(Self(val))
+    }
+}
+
+impl<const MIN: i64> Deref for LowerBoundInt<MIN> {
+    type Target = i64;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
@@ -152,7 +168,7 @@ impl<'de, const MAX: i64> serde::Deserialize<'de> for UpperBoundInt<MAX> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, serde::Serialize)]
 pub(crate) struct BoundedInt<const MIN: i64, const MAX: i64>(i64);
 
 impl<const MIN: i64, const MAX: i64> BoundedInt<MIN, MAX> {
@@ -163,6 +179,14 @@ impl<const MIN: i64, const MAX: i64> BoundedInt<MIN, MAX> {
         }
 
         Ok(Self(val))
+    }
+}
+
+impl<const MIN: i64, const MAX: i64> Deref for BoundedInt<MIN, MAX> {
+    type Target = i64;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
@@ -231,7 +255,7 @@ mod tests {
     }
 
     #[test]
-    fn can_deserialize_non_negative_strings() {
+    fn can_deserialize_non_empty_strings() {
         let data = r#"{"v": "1"}"#;
 
         let tst = serde_json::from_str::<Tst2>(data).unwrap();

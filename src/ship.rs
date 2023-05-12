@@ -4,119 +4,119 @@ use crate::{
     waypoint::WaypointType,
 };
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Ship {
-    symbol: Symbol,
-    registration: Registration,
-    nav: Nav,
-    crew: Crew,
-    frame: Frame,
-    reactor: Reactor,
-    engine: Engine,
-    modules: Vec<Module>,
-    mounts: Vec<Mount>,
-    cargo: Cargo,
-    fuel: Fuel,
+    pub(crate) symbol: Symbol,
+    pub(crate) registration: Registration,
+    pub(crate) nav: Nav,
+    pub(crate) crew: Crew,
+    pub(crate) frame: Frame,
+    pub(crate) reactor: Reactor,
+    pub(crate) engine: Engine,
+    pub(crate) modules: Vec<Module>,
+    pub(crate) mounts: Vec<Mount>,
+    pub(crate) cargo: Cargo,
+    pub(crate) fuel: Fuel,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-struct Nav {
-    system_symbol: Symbol,
-    waypoint_symbol: Symbol,
-    route: Route,
-    status: Status,
-    flight_mode: FlightMode,
+pub(crate) struct Nav {
+    pub(crate) system_symbol: Symbol,
+    pub(crate) waypoint_symbol: Symbol,
+    pub(crate) route: Route,
+    pub(crate) status: ShipStatus,
+    pub(crate) flight_mode: FlightMode,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, serde::Serialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-enum Status {
+pub(crate) enum ShipStatus {
     InTransit,
     InOrbit,
     Docked,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, serde::Serialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-enum FlightMode {
+pub(crate) enum FlightMode {
     Drift,
     Stealth,
     Cruise,
     Burn,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-struct Route {
-    destination: Location,
-    departure: Location,
+pub(crate) struct Route {
+    pub(crate) destination: Location,
+    pub(crate) departure: Location,
     departure_time: chrono::DateTime<chrono::Utc>,
     arrival: chrono::DateTime<chrono::Utc>,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-struct Location {
-    symbol: Symbol,
+pub(crate) struct Location {
+    pub(crate) symbol: Symbol,
     #[serde(rename = "type")]
-    waypoint_type: WaypointType,
-    system_symbol: Symbol,
-    x: i32,
-    y: i32,
+    pub(crate) waypoint_type: WaypointType,
+    pub(crate) system_symbol: Symbol,
+    pub(crate) x: i32,
+    pub(crate) y: i32,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-struct Crew {
-    current: i32,
-    required: i32,
-    capacity: i32,
-    rotation: Rotation,
-    morale: BoundedInt<0, 100>,
-    wages: NonNegative,
+pub(crate) struct Crew {
+    pub(crate) current: i32,
+    pub(crate) required: i32,
+    pub(crate) capacity: i32,
+    pub(crate) rotation: Rotation,
+    pub(crate) morale: BoundedInt<0, 100>,
+    pub(crate) wages: NonNegative,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, serde::Serialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-enum Rotation {
+pub(crate) enum Rotation {
     Strict,
     Relaxed,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-struct Fuel {
-    current: NonNegative,
-    capacity: NonNegative,
-    consumed: Consumed,
+pub(crate) struct Fuel {
+    pub(crate) current: NonNegative,
+    pub(crate) capacity: NonNegative,
+    pub(crate) consumed: Consumed,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-struct Consumed {
-    amount: NonNegative,
+pub(crate) struct Consumed {
+    pub(crate) amount: NonNegative,
     timestamp: chrono::DateTime<chrono::Utc>,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-struct Frame {
-    symbol: FrameSymbol,
-    name: Name,
-    description: Description,
-    condition: BoundedInt<0, 100>,
-    module_slots: NonNegative,
-    mounting_points: NonNegative,
-    fuel_capacity: NonNegative,
-    requirements: Requirements,
+pub(crate) struct Frame {
+    pub(crate) symbol: FrameSymbol,
+    pub(crate) name: Name,
+    pub(crate) description: Description,
+    pub(crate) condition: BoundedInt<0, 100>,
+    pub(crate) module_slots: NonNegative,
+    pub(crate) mounting_points: NonNegative,
+    pub(crate) fuel_capacity: NonNegative,
+    pub(crate) requirements: Requirements,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, serde::Serialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[allow(clippy::enum_variant_names)]
-enum FrameSymbol {
+pub(crate) enum FrameSymbol {
     FrameProbe,
     FrameDrone,
     FrameInterceptor,
@@ -134,20 +134,20 @@ enum FrameSymbol {
     FrameCarrier,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-struct Reactor {
-    symbol: ReactorSymbol,
-    name: Name,
-    description: Description,
-    condition: BoundedInt<0, 100>,
-    power_output: LowerBoundInt<1>,
-    requirements: Requirements,
+pub(crate) struct Reactor {
+    pub(crate) symbol: ReactorSymbol,
+    pub(crate) name: Name,
+    pub(crate) description: Description,
+    pub(crate) condition: BoundedInt<0, 100>,
+    pub(crate) power_output: LowerBoundInt<1>,
+    pub(crate) requirements: Requirements,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, serde::Serialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-enum ReactorSymbol {
+pub(crate) enum ReactorSymbol {
     ReactorSolarI,
     ReactorFusionI,
     ReactorFissionI,
@@ -155,40 +155,40 @@ enum ReactorSymbol {
     ReactorAntimatterI,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-struct Engine {
-    symbol: EngineSymbol,
-    name: Name,
-    description: Description,
-    condition: BoundedInt<0, 100>,
-    speed: LowerBoundInt<1>,
-    requirements: Requirements,
+pub(crate) struct Engine {
+    pub(crate) symbol: EngineSymbol,
+    pub(crate) name: Name,
+    pub(crate) description: Description,
+    pub(crate) condition: BoundedInt<0, 100>,
+    pub(crate) speed: LowerBoundInt<1>,
+    pub(crate) requirements: Requirements,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, serde::Serialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-enum EngineSymbol {
+pub(crate) enum EngineSymbol {
     EngineImpulseDriveI,
     EngineIonDriveI,
     #[serde(rename = "ENGINE_ION_DRIVE_II")]
     EngineIonDriveII,
     EngineHyperDriveI,
 }
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-struct Module {
-    symbol: ModuleSymbol,
-    capacity: Option<NonNegative>,
-    range: Option<NonNegative>,
-    name: Name,
-    description: Description,
-    requirements: Requirements,
+pub(crate) struct Module {
+    pub(crate) symbol: ModuleSymbol,
+    pub(crate) capacity: Option<NonNegative>,
+    pub(crate) range: Option<NonNegative>,
+    pub(crate) name: Name,
+    pub(crate) description: Description,
+    pub(crate) requirements: Requirements,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, serde::Serialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-enum ModuleSymbol {
+pub(crate) enum ModuleSymbol {
     ModuleMineralProcessorI,
     ModuleCargoHoldI,
     ModuleCrewQuartersI,
@@ -213,28 +213,28 @@ enum ModuleSymbol {
     ModuleShieldGeneratorII,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-struct Requirements {
-    power: Option<i32>,
-    crew: Option<i32>,
-    slots: Option<i32>,
+pub(crate) struct Requirements {
+    pub(crate) power: Option<i32>,
+    pub(crate) crew: Option<i32>,
+    pub(crate) slots: Option<i32>,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-struct Mount {
-    symbol: MountSymbol,
-    name: Name,
-    description: Description,
-    strength: NonNegative,
-    deposits: Option<Vec<Deposit>>,
-    requirements: Requirements,
+pub(crate) struct Mount {
+    pub(crate) symbol: MountSymbol,
+    pub(crate) name: Name,
+    pub(crate) description: Description,
+    pub(crate) strength: NonNegative,
+    pub(crate) deposits: Option<Vec<Deposit>>,
+    pub(crate) requirements: Requirements,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, serde::Serialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-enum Deposit {
+pub(crate) enum Deposit {
     QuartzSand,
     SiliconCrystals,
     PreciousStones,
@@ -251,9 +251,9 @@ enum Deposit {
     MeritiumOre,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, serde::Serialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-enum MountSymbol {
+pub(crate) enum MountSymbol {
     MountGasSiphonI,
     #[serde(rename = "MOUNT_GAS_SIPHON_II")]
     MountGasSiphonII,
@@ -279,17 +279,17 @@ enum MountSymbol {
     MountTurretI,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-struct Registration {
+pub(crate) struct Registration {
     name: Name,
-    faction_symbol: FactionSymbol,
-    role: Role,
+    pub(crate) faction_symbol: FactionSymbol,
+    pub(crate) role: Role,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, serde::Serialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-enum Role {
+pub(crate) enum Role {
     Fabricator,
     Harvester,
     Hauler,
@@ -306,19 +306,19 @@ enum Role {
     Refinery,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-struct Cargo {
-    capacity: NonNegative,
-    units: NonNegative,
-    inventory: Vec<InventoryItem>,
+pub(crate) struct Cargo {
+    pub(crate) capacity: NonNegative,
+    pub(crate) units: NonNegative,
+    pub(crate) inventory: Vec<InventoryItem>,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-struct InventoryItem {
-    symbol: Symbol,
-    name: Name,
-    description: Description,
-    units: LowerBoundInt<1>,
+pub(crate) struct InventoryItem {
+    pub(crate) symbol: Symbol,
+    pub(crate) name: Name,
+    pub(crate) description: Description,
+    pub(crate) units: LowerBoundInt<1>,
 }

@@ -1,6 +1,6 @@
 use crate::common::NonEmptyString;
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, serde::Serialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub(crate) enum WaypointType {
     Planet,

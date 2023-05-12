@@ -1,16 +1,16 @@
 use crate::common::{Description, Headquarters, Name, NonEmptyString};
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Faction {
-    symbol: FactionSymbol,
-    name: Name,
-    description: Description,
-    headquarters: Headquarters,
-    traits: Vec<Trait>,
+    pub(crate) symbol: FactionSymbol,
+    pub(crate) name: Name,
+    pub(crate) description: Description,
+    pub(crate) headquarters: Headquarters,
+    pub(crate) traits: Vec<Trait>,
 }
 
-#[derive(serde::Deserialize, Debug, Clone)]
+#[derive(serde::Deserialize, Debug, Clone, serde::Serialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum FactionSymbol {
     Cosmic,
@@ -32,17 +32,17 @@ impl FactionSymbol {
     }
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-struct Trait {
-    symbol: TraitSymbol,
-    name: Name,
-    description: Description,
+pub(crate) struct Trait {
+    pub(crate) symbol: TraitSymbol,
+    pub(crate) name: Name,
+    pub(crate) description: Description,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, serde::Serialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-enum TraitSymbol {
+pub(crate) enum TraitSymbol {
     Bureaucratic,
     Secretive,
     Capitalistic,
