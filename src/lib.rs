@@ -15,8 +15,8 @@ pub enum SpaceTradersError {
     #[error("{0}")]
     RegisterAgentExistsError(String),
 
-    #[error("The callsign must not be longer than 14 characters")]
-    CallsignTooLong,
+    #[error("The callsign must be in between 3 and 14 characters")]
+    InvalidCallsignLength,
 
     #[error("Token must be set first: use `register_callsign` or `initialize_with_token` to set the token.")]
     TokenNotSet,
@@ -104,8 +104,9 @@ impl SpaceTradersClient {
     pub async fn register_callsign(&mut self, callsign: &str) -> STResult<()> {
         use reqwest::header::{HeaderName, CONTENT_TYPE};
 
-        if callsign.len() > 14 {
-            return Err(SpaceTradersError::CallsignTooLong);
+        let clen = callsign.len();
+        if !(3..=14).contains(&clen) {
+            return Err(SpaceTradersError::InvalidCallsignLength);
         }
 
         const URL: &str = "https://api.spacetraders.io/v2/register";
