@@ -44,8 +44,6 @@ impl Default for SpaceTradersClient {
 }
 
 impl SpaceTradersClient {
-    // TODO: Eventually add support for multiple save files
-    //
     /// Load a `SpaceTradersClient` from a save file.
     ///
     /// Currently, there can only be one save file (named `spacetraders.save`), though support for
@@ -87,8 +85,6 @@ impl SpaceTradersClient {
         })
     }
 
-    // TODO: Eventually add support for multiple save files
-    //
     /// Saves the `SpaceTradersClient` to a file named `spacetraders.save`.
     ///
     /// This data can be retrieved using [load_saved](SpaceTradersClient::load_saved).
@@ -530,7 +526,6 @@ mod tests {
 
         assert_eq!(saved_client.token, client.token);
 
-        // TODO: Check all cached values!
         let cache = client.cache.unwrap();
         let saved_cache = saved_client.cache.unwrap();
         assert_eq!(*saved_cache.ship.symbol, *cache.ship.symbol);

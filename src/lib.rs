@@ -1,6 +1,3 @@
-// TODO: Add basic examples etc to the crate docs.
-// TODO: Add README to crate docs: #[doc = include_str!("../README.md")]
-//
 //! A client for the [SpaceTraders API](https://spacetraders.io/).
 //!
 //! This crate provides methods to register a new account/agent, load a saved agent, and automate
