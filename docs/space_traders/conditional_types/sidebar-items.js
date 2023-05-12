@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["NonEmptyStringError",""]],"struct":[["LowerBoundInt",""],["NonEmptyString",""],["UpperBoundInt",""]],"type":[["Description",""],["Headquarters",""],["Id",""],["Name",""],["Symbol",""]]};
