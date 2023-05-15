@@ -93,16 +93,10 @@ impl Display for ResponseError {
 }
 
 #[derive(serde::Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", untagged)]
 pub(crate) enum ResponseData<T> {
-    Data(T),
-
-    #[serde(rename = "data")]
-    PaginatedData {
-        data: Vec<T>,
-        meta: Meta,
-    },
-
+    Data { data: T },
+    PaginatedData { data: Vec<T>, meta: Meta },
     Error(ResponseError),
 }
 

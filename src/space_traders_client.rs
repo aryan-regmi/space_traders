@@ -9,7 +9,7 @@ use crate::{
     prelude::LowerBoundInt,
     ship::Ship,
     waypoint::Waypoint,
-    ResponseData, STResult, SpaceTradersError,
+    ResponseData, ResponseError, STResult, SpaceTradersError,
 };
 use std::collections::HashMap;
 
@@ -180,23 +180,21 @@ impl SpaceTradersClient {
         }
 
         match res.json::<ResponseData<RegistrationResponse>>().await? {
-            ResponseData::Data(registered_info) => {
-                self.token = Some(registered_info.token);
+            ResponseData::Data { data } => {
+                self.token = Some(data.token);
                 self.token_set = true;
 
                 self.cache = Some(CachedInfo {
-                    agent: registered_info.agent,
-                    contracts: vec![registered_info.contract],
-                    faction: registered_info.faction,
-                    ship: registered_info.ship,
+                    agent: data.agent,
+                    contracts: vec![data.contract],
+                    faction: data.faction,
+                    ship: data.ship,
                 });
 
                 Ok(())
             }
-            ResponseData::Error(err) => Err(SpaceTradersError::SpaceTradersResponseError(err)),
-            ResponseData::PaginatedData { .. } => {
-                unreachable!("This call doesn't return paginated data")
-            }
+            ResponseData::PaginatedData { .. } => unreachable!(),
+            ResponseData::Error(e) => Err(SpaceTradersError::SpaceTradersResponseError(e)),
         }
     }
 
@@ -245,11 +243,9 @@ impl SpaceTradersClient {
             .await?;
 
         match res.json::<ResponseData<Waypoint>>().await? {
-            ResponseData::Data(waypoint) => Ok(waypoint),
-            ResponseData::Error(err) => Err(SpaceTradersError::SpaceTradersResponseError(err)),
-            ResponseData::PaginatedData { .. } => {
-                unreachable!("This call doesn't return paginated data")
-            }
+            ResponseData::Data { data } => Ok(data),
+            ResponseData::PaginatedData { .. } => unreachable!(),
+            ResponseData::Error(e) => Err(SpaceTradersError::SpaceTradersResponseError(e)),
         }
     }
 
@@ -278,13 +274,10 @@ impl SpaceTradersClient {
         // Send request
         let res = self.client.get(url).headers(headers).send().await?;
 
-        // dbg!(res.json::<serde_json::Value>().await.unwrap());
-        // todo!();
-
         match res.json::<ResponseData<Contract>>().await? {
-            ResponseData::Data(_) => unreachable!("This call doesn't return un-paginated data"),
-            ResponseData::Error(e) => Err(SpaceTradersError::SpaceTradersResponseError(e)),
+            ResponseData::Data { .. } => unreachable!(),
             ResponseData::PaginatedData { data, meta } => Ok((data, meta)),
+            ResponseData::Error(e) => Err(SpaceTradersError::SpaceTradersResponseError(e)),
         }
     }
 }
@@ -611,14 +604,14 @@ mod tests {
 
     #[tokio::test]
     async fn can_list_contracts() {
-        // let client = SpaceTradersClient::load_saved().unwrap();
-        //
-        // let (contracts, meta) = client
-        //     .view_all_contracts(LowerBoundInt::new(1).unwrap())
-        //     .await
-        //     .unwrap();
-        //
-        // dbg!(meta);
-        // dbg!(contracts);
+        let client = SpaceTradersClient::load_saved().unwrap();
+
+        let (contracts, meta) = client
+            .view_all_contracts(LowerBoundInt::new(1).unwrap())
+            .await
+            .unwrap();
+
+        dbg!(meta);
+        dbg!(contracts);
     }
 }
