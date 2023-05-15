@@ -5,7 +5,7 @@ use crate::{
 
 #[derive(serde::Deserialize, Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct Contract {
+pub struct Contract {
     id: Id,
     pub(crate) faction_symbol: FactionSymbol,
     #[serde(rename = "type")]

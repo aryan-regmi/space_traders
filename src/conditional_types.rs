@@ -187,7 +187,7 @@ impl<'de, const MAX: i64> serde::Deserialize<'de> for UpperBoundInt<MAX> {
 }
 
 #[derive(Debug, serde::Serialize)]
-pub(crate) struct BoundedInt<const MIN: i64, const MAX: i64>(i64);
+pub struct BoundedInt<const MIN: i64, const MAX: i64>(i64);
 
 impl<const MIN: i64, const MAX: i64> BoundedInt<MIN, MAX> {
     fn new(val: i64) -> Result<Self, Box<dyn Error>> {

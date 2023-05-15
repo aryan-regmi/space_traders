@@ -5,8 +5,11 @@
 
 use std::fmt::Display;
 
+use meta::Meta;
+
 mod contract;
 mod faction;
+mod meta;
 mod ship;
 mod waypoint;
 
@@ -38,6 +41,10 @@ pub enum SpaceTradersError {
     #[error("ReqwestError: {0}")]
     ReqwestError(#[from] reqwest::Error),
 
+    /// Forwarded HTTP header errors.
+    #[error("ReqwestHeaderError: {0}")]
+    ReqwestHeaderError(#[from] reqwest::header::InvalidHeaderValue),
+
     /// Error occured during file creation/access.
     #[error("FileError: {0}")]
     FileError(#[from] std::io::Error),
@@ -57,6 +64,9 @@ pub enum SpaceTradersError {
     /// Errors from the SpaceTraders API.
     #[error("SpaceTradersResponseError: There was an error with the API response: {0}")]
     SpaceTradersResponseError(#[from] ResponseError),
+
+    #[error("UrlParseError: There was an error with parsing the URL: {0}")]
+    UrlParseError(String),
 }
 
 #[derive(serde::Deserialize, Debug)]
@@ -68,9 +78,9 @@ struct ErrorInnerData {
 #[derive(serde::Deserialize, Debug, thiserror::Error)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseError {
-    message: String,
     code: i32,
-    data: ErrorInnerData,
+    message: String,
+    data: Option<ErrorInnerData>,
 }
 
 impl Display for ResponseError {
@@ -86,6 +96,12 @@ impl Display for ResponseError {
 #[serde(rename_all = "camelCase")]
 pub(crate) enum ResponseData<T> {
     Data(T),
+
+    #[serde(rename = "data")]
+    PaginatedData {
+        data: Vec<T>,
+        meta: Meta,
+    },
 
     Error(ResponseError),
 }

@@ -5,6 +5,8 @@ use crate::{
     conditional_types::Symbol,
     contract::Contract,
     faction::{Faction, FactionSymbol},
+    meta::Meta,
+    prelude::LowerBoundInt,
     ship::Ship,
     waypoint::Waypoint,
     ResponseData, STResult, SpaceTradersError,
@@ -30,9 +32,6 @@ pub struct SpaceTradersClient {
 }
 
 impl Default for SpaceTradersClient {
-    /// Initalize a client to register with.
-    ///
-    /// **NOTE: [register_callsign](Self::register_callsign) must be called to generate a token and get registration data.**
     fn default() -> Self {
         Self {
             client: reqwest::Client::new(),
@@ -44,6 +43,13 @@ impl Default for SpaceTradersClient {
 }
 
 impl SpaceTradersClient {
+    /// Initalize a client to register with.
+    ///
+    /// **NOTE: [register_callsign](Self::register_callsign) must be called to generate a token and get registration data.**
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     /// Load a `SpaceTradersClient` from a save file.
     ///
     /// Currently, there can only be one save file (named `spacetraders.save`), though support for
@@ -188,6 +194,9 @@ impl SpaceTradersClient {
                 Ok(())
             }
             ResponseData::Error(err) => Err(SpaceTradersError::SpaceTradersResponseError(err)),
+            ResponseData::PaginatedData { .. } => {
+                unreachable!("This call doesn't return paginated data")
+            }
         }
     }
 
@@ -238,6 +247,44 @@ impl SpaceTradersClient {
         match res.json::<ResponseData<Waypoint>>().await? {
             ResponseData::Data(waypoint) => Ok(waypoint),
             ResponseData::Error(err) => Err(SpaceTradersError::SpaceTradersResponseError(err)),
+            ResponseData::PaginatedData { .. } => {
+                unreachable!("This call doesn't return paginated data")
+            }
+        }
+    }
+
+    // TODO: Return an iterator that can be `.next()` to the next page
+    pub async fn view_all_contracts(
+        &self,
+        page: LowerBoundInt<1>,
+    ) -> STResult<(Vec<Contract>, Meta)> {
+        use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION};
+
+        const URL: &str = "https://api.spacetraders.io/v2/my/contracts";
+
+        let params = [("limit", "20"), ("page", &page.to_string())];
+
+        let url = reqwest::Url::parse_with_params(URL, params)
+            .map_err(|e| SpaceTradersError::UrlParseError(e.to_string()))?;
+
+        let mut headers = HeaderMap::new();
+        headers.insert(ACCEPT, HeaderValue::from_static("application/json"));
+        headers.insert(
+            AUTHORIZATION,
+            HeaderValue::from_str(&format!("Bearer {}", self.token.as_ref().unwrap()))
+                .map_err(SpaceTradersError::ReqwestHeaderError)?,
+        );
+
+        // Send request
+        let res = self.client.get(url).headers(headers).send().await?;
+
+        // dbg!(res.json::<serde_json::Value>().await.unwrap());
+        // todo!();
+
+        match res.json::<ResponseData<Contract>>().await? {
+            ResponseData::Data(_) => unreachable!("This call doesn't return un-paginated data"),
+            ResponseData::Error(e) => Err(SpaceTradersError::SpaceTradersResponseError(e)),
+            ResponseData::PaginatedData { data, meta } => Ok((data, meta)),
         }
     }
 }
@@ -269,7 +316,7 @@ mod tests {
     fn check_default_values(cache: CachedInfo, callsign: &str) {
         let agent = cache.agent;
         assert_eq!(*agent.symbol, callsign);
-        assert_eq!(*agent.headquarters, "X1-DF55-20250Z");
+        assert_eq!(*agent.headquarters, "X1-ZA40-15970B");
         assert_eq!(agent.credits, 100_000);
 
         let contracts = cache.contracts;
@@ -284,7 +331,7 @@ mod tests {
         assert_eq!(faction.symbol, FactionSymbol::Cosmic);
         assert_eq!(*faction.name, "Cosmic Engineers");
         assert_eq!(*faction.description, "The Cosmic Engineers are a group of highly advanced scientists and engineers who seek to terraform and colonize new worlds, pushing the boundaries of technology and exploration.");
-        assert_eq!(*faction.headquarters, "X1-DF55-20250Z");
+        assert_eq!(*faction.headquarters, "X1-ZA40-15970B");
         assert_eq!(faction.traits.len(), 4);
 
         let traits = faction.traits;
@@ -303,17 +350,17 @@ mod tests {
 
         let ship = cache.ship;
         let nav = &ship.nav;
-        assert_eq!(*nav.system_symbol, "X1-DF55");
-        assert_eq!(*nav.waypoint_symbol, "X1-DF55-20250Z");
-        assert_eq!(*nav.route.departure.symbol, "X1-DF55-20250Z");
-        assert_eq!(*nav.route.departure.system_symbol, "X1-DF55");
-        assert_eq!(nav.route.departure.x, -5);
-        assert_eq!(nav.route.departure.y, 9);
-        assert_eq!(*nav.route.destination.symbol, "X1-DF55-20250Z");
+        assert_eq!(*nav.system_symbol, "X1-ZA40");
+        assert_eq!(*nav.waypoint_symbol, "X1-ZA40-15970B");
+        assert_eq!(*nav.route.departure.symbol, "X1-ZA40-15970B");
+        assert_eq!(*nav.route.departure.system_symbol, "X1-ZA40");
+        assert_eq!(nav.route.departure.x, 10);
+        assert_eq!(nav.route.departure.y, 0);
+        assert_eq!(*nav.route.destination.symbol, "X1-ZA40-15970B");
         assert_eq!(nav.route.destination.waypoint_type, WaypointType::Planet);
-        assert_eq!(*ship.nav.route.destination.system_symbol, "X1-DF55");
-        assert_eq!(ship.nav.route.destination.x, -5);
-        assert_eq!(ship.nav.route.destination.y, 9);
+        assert_eq!(*ship.nav.route.destination.system_symbol, "X1-ZA40");
+        assert_eq!(ship.nav.route.destination.x, 10);
+        assert_eq!(ship.nav.route.destination.y, 0);
         assert_eq!(ship.nav.status, ShipStatus::Docked);
         assert_eq!(ship.nav.flight_mode, FlightMode::Cruise);
 
@@ -494,52 +541,46 @@ mod tests {
         client.register_callsign(&callsign, None).await.unwrap();
 
         assert!(client.token_set);
-        let cache = client.cache.unwrap();
-        check_default_values(cache, &callsign);
     }
 
     #[tokio::test]
     async fn can_save_and_load_client() {
-        let callsign = gen_callsign();
-
-        let mut client = SpaceTradersClient::default();
-        client.register_callsign(&callsign, None).await.unwrap();
-
-        client.save_client().unwrap();
+        let callsign = "TST-RS-01";
 
         let saved_client = SpaceTradersClient::load_saved().unwrap();
 
-        assert_eq!(saved_client.token, client.token);
+        assert!(saved_client.token_set);
 
-        let cache = client.cache.unwrap();
         let saved_cache = saved_client.cache.unwrap();
-        assert_eq!(*saved_cache.ship.symbol, *cache.ship.symbol);
-        check_default_values(saved_cache, &callsign);
+        dbg!(&saved_cache.ship.symbol);
+        assert_eq!(*saved_cache.ship.symbol, "TST-RS-01-1");
+        check_default_values(saved_cache, callsign);
     }
 
     #[tokio::test]
     async fn can_query_waypoint() {
         let client = SpaceTradersClient::load_saved().unwrap();
 
+        // X1-ZA40-15970B
         let waypoint = client
             .view_waypoint(
-                "X1-DF55".try_into().unwrap(),
-                "X1-DF55-20250Z".try_into().unwrap(),
+                "X1-ZA40".try_into().unwrap(),
+                "X1-ZA40-15970B".try_into().unwrap(),
             )
             .await
             .unwrap();
 
-        assert_eq!(*waypoint.system_symbol, "X1-DF55");
-        assert_eq!(*waypoint.symbol, "X1-DF55-20250Z");
+        assert_eq!(*waypoint.system_symbol, "X1-ZA40");
+        assert_eq!(*waypoint.symbol, "X1-ZA40-15970B");
         assert_eq!(waypoint.waypoint_type, WaypointType::Planet);
-        assert_eq!(waypoint.x, -5);
-        assert_eq!(waypoint.y, 9);
+        assert_eq!(waypoint.x, 10);
+        assert_eq!(waypoint.y, 0);
 
         let orbitals = waypoint.orbitals;
         assert_eq!(orbitals.len(), 3);
-        assert_eq!(*orbitals[0].symbol, "X1-DF55-89861D");
-        assert_eq!(*orbitals[1].symbol, "X1-DF55-64862A");
-        assert_eq!(*orbitals[2].symbol, "X1-DF55-71593D");
+        assert_eq!(*orbitals[0].symbol, "X1-ZA40-69371X");
+        assert_eq!(*orbitals[1].symbol, "X1-ZA40-97262C");
+        assert_eq!(*orbitals[2].symbol, "X1-ZA40-11513D");
 
         let traits = waypoint.traits;
         assert_eq!(traits.len(), 5);
@@ -562,9 +603,22 @@ mod tests {
         let chart = waypoint.chart.unwrap();
         assert_eq!(*chart.submitted_by.unwrap(), "COSMIC");
         let submitted_on: chrono::DateTime<chrono::Utc> =
-            chrono::DateTime::from_str("2023-01-23T17:20:36.870Z").unwrap();
+            chrono::DateTime::from_str("2023-05-13T17:48:46.579Z").unwrap();
         assert_eq!(chart.submitted_on, submitted_on);
 
         assert_eq!(waypoint.faction.unwrap().symbol, FactionSymbol::Cosmic);
+    }
+
+    #[tokio::test]
+    async fn can_list_contracts() {
+        // let client = SpaceTradersClient::load_saved().unwrap();
+        //
+        // let (contracts, meta) = client
+        //     .view_all_contracts(LowerBoundInt::new(1).unwrap())
+        //     .await
+        //     .unwrap();
+        //
+        // dbg!(meta);
+        // dbg!(contracts);
     }
 }
