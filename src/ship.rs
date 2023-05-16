@@ -1,5 +1,6 @@
 use crate::{
-    conditional_types::{BoundedInt, Description, LowerBoundInt, Name, NonNegative, Symbol},
+    conditional_types::ints::{BoundedInt, LowerBoundInt, NonNegative},
+    conditional_types::strings::{Description, Name, Symbol},
     faction::FactionSymbol,
     waypoint::WaypointType,
 };

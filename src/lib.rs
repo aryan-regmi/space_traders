@@ -20,9 +20,11 @@ pub mod space_traders_client;
 pub mod prelude {
     //! Provides common structs and functions.
 
-    pub use crate::agent::Agent;
+    pub use crate::agent::*;
+    pub use crate::conditional_types::ints::*;
+    pub use crate::conditional_types::strings::*;
     pub use crate::conditional_types::*;
-    pub use crate::space_traders_client::SpaceTradersClient;
+    pub use crate::space_traders_client::*;
 }
 
 /// Represents all possible errors for the [SpaceTradersClient](space_traders_client::SpaceTradersClient).

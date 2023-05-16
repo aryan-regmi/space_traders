@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use crate::{
     conditional_types::{Description, Name, Symbol},
     faction::FactionSymbol,
@@ -6,21 +8,21 @@ use crate::{
 #[derive(serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Waypoint {
-    pub symbol: Symbol,
+    pub(crate) symbol: Symbol,
     #[serde(rename = "type")]
-    pub waypoint_type: WaypointType,
-    pub system_symbol: Symbol,
-    pub x: i32,
-    pub y: i32,
-    pub orbitals: Vec<OrbitalSymbol>,
-    pub faction: Option<InnerFactionSymbol>,
-    pub traits: Vec<Trait>,
-    pub chart: Option<Chart>,
+    pub(crate) waypoint_type: WaypointType,
+    pub(crate) system_symbol: Symbol,
+    pub(crate) x: i32,
+    pub(crate) y: i32,
+    pub(crate) orbitals: Vec<OrbitalSymbol>,
+    pub(crate) faction: Option<InnerFactionSymbol>,
+    pub(crate) traits: Vec<Trait>,
+    pub(crate) chart: Option<Chart>,
 }
 
 #[derive(serde::Deserialize, Debug, serde::Serialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum WaypointType {
+pub(crate) enum WaypointType {
     Planet,
     GasGiant,
     Moon,
@@ -34,27 +36,27 @@ pub enum WaypointType {
 
 #[derive(serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct InnerFactionSymbol {
-    pub symbol: FactionSymbol,
+pub(crate) struct InnerFactionSymbol {
+    pub(crate) symbol: FactionSymbol,
 }
 
 #[derive(serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct OrbitalSymbol {
-    pub symbol: Symbol,
+pub(crate) struct OrbitalSymbol {
+    pub(crate) symbol: Symbol,
 }
 
 #[derive(serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct Trait {
-    pub symbol: WaypointTraitSymbols,
-    pub name: Name,
-    pub description: Description,
+pub(crate) struct Trait {
+    pub(crate) symbol: WaypointTraitSymbols,
+    pub(crate) name: Name,
+    pub(crate) description: Description,
 }
 
 #[derive(serde::Deserialize, Debug, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum WaypointTraitSymbols {
+pub(crate) enum WaypointTraitSymbols {
     Uncharted,
     Marketplace,
     Shipyard,
@@ -118,7 +120,7 @@ pub enum WaypointTraitSymbols {
 
 #[derive(serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct Chart {
+pub(crate) struct Chart {
     pub waypoint_symbol: Option<Symbol>,
     pub submitted_by: Option<Symbol>,
     pub submitted_on: chrono::DateTime<chrono::Utc>,

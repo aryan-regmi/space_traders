@@ -2,7 +2,7 @@
 
 use crate::{
     agent::Agent,
-    conditional_types::Symbol,
+    conditional_types::strings::Symbol,
     contract::Contract,
     faction::{Faction, FactionSymbol},
     prelude::Id,
@@ -217,6 +217,7 @@ impl SpaceTradersClient {
         Err(SpaceTradersError::EmptyCache)
     }
 
+    /// Get info on a specific waypoint.
     pub async fn view_waypoint(
         &self,
         system_symbol: Symbol,
@@ -252,6 +253,7 @@ impl SpaceTradersClient {
         }
     }
 
+    /// Get all contracts associated w/ the current agent.
     pub fn contracts(&self) -> STResult<&Vec<Contract>> {
         if let Some(cache) = &self.cache {
             return Ok(&cache.contracts);
@@ -260,6 +262,7 @@ impl SpaceTradersClient {
         Err(SpaceTradersError::EmptyCache)
     }
 
+    /// Accept a specific contract given its ID.
     pub async fn accept_contract(&mut self, contract_id: Id) -> STResult<()> {
         use reqwest::header::{
             HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_LENGTH, CONTENT_TYPE,
