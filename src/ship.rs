@@ -4,8 +4,9 @@ use crate::{
     faction::FactionSymbol,
     waypoint::WaypointType,
 };
+use serde::{Deserialize, Serialize};
 
-#[derive(serde::Deserialize, Debug, serde::Serialize)]
+#[derive(Deserialize, Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Ship {
     pub(crate) symbol: Symbol,
@@ -21,7 +22,7 @@ pub(crate) struct Ship {
     pub(crate) fuel: Fuel,
 }
 
-#[derive(serde::Deserialize, Debug, serde::Serialize)]
+#[derive(Deserialize, Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Nav {
     pub(crate) system_symbol: Symbol,
@@ -31,7 +32,7 @@ pub(crate) struct Nav {
     pub(crate) flight_mode: FlightMode,
 }
 
-#[derive(serde::Deserialize, Debug, serde::Serialize, PartialEq, Eq)]
+#[derive(Deserialize, Debug, Serialize, PartialEq, Eq, Clone, Copy)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub(crate) enum ShipStatus {
     InTransit,
@@ -39,7 +40,7 @@ pub(crate) enum ShipStatus {
     Docked,
 }
 
-#[derive(serde::Deserialize, Debug, serde::Serialize, PartialEq, Eq)]
+#[derive(Deserialize, Debug, Serialize, PartialEq, Eq, Clone, Copy)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub(crate) enum FlightMode {
     Drift,
@@ -48,7 +49,7 @@ pub(crate) enum FlightMode {
     Burn,
 }
 
-#[derive(serde::Deserialize, Debug, serde::Serialize)]
+#[derive(Deserialize, Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Route {
     pub(crate) destination: Location,
@@ -57,7 +58,7 @@ pub(crate) struct Route {
     arrival: chrono::DateTime<chrono::Utc>,
 }
 
-#[derive(serde::Deserialize, Debug, serde::Serialize)]
+#[derive(Deserialize, Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Location {
     pub(crate) symbol: Symbol,
@@ -68,7 +69,7 @@ pub(crate) struct Location {
     pub(crate) y: i32,
 }
 
-#[derive(serde::Deserialize, Debug, serde::Serialize)]
+#[derive(Deserialize, Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Crew {
     pub(crate) current: i32,
@@ -79,14 +80,14 @@ pub(crate) struct Crew {
     pub(crate) wages: NonNegative,
 }
 
-#[derive(serde::Deserialize, Debug, serde::Serialize, PartialEq, Eq)]
+#[derive(Deserialize, Debug, Serialize, PartialEq, Eq, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub(crate) enum Rotation {
     Strict,
     Relaxed,
 }
 
-#[derive(serde::Deserialize, Debug, serde::Serialize)]
+#[derive(Deserialize, Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Fuel {
     pub(crate) current: NonNegative,
@@ -94,14 +95,14 @@ pub(crate) struct Fuel {
     pub(crate) consumed: Consumed,
 }
 
-#[derive(serde::Deserialize, Debug, serde::Serialize)]
+#[derive(Deserialize, Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Consumed {
     pub(crate) amount: NonNegative,
     timestamp: chrono::DateTime<chrono::Utc>,
 }
 
-#[derive(serde::Deserialize, Debug, serde::Serialize)]
+#[derive(Deserialize, Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Frame {
     pub(crate) symbol: FrameSymbol,
@@ -114,7 +115,7 @@ pub(crate) struct Frame {
     pub(crate) requirements: Requirements,
 }
 
-#[derive(serde::Deserialize, Debug, serde::Serialize, PartialEq, Eq)]
+#[derive(Deserialize, Debug, Serialize, PartialEq, Eq, Clone, Copy)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[allow(clippy::enum_variant_names)]
 pub(crate) enum FrameSymbol {
@@ -135,7 +136,7 @@ pub(crate) enum FrameSymbol {
     FrameCarrier,
 }
 
-#[derive(serde::Deserialize, Debug, serde::Serialize)]
+#[derive(Deserialize, Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Reactor {
     pub(crate) symbol: ReactorSymbol,
@@ -146,7 +147,7 @@ pub(crate) struct Reactor {
     pub(crate) requirements: Requirements,
 }
 
-#[derive(serde::Deserialize, Debug, serde::Serialize, PartialEq, Eq)]
+#[derive(Deserialize, Debug, Serialize, PartialEq, Eq, Clone, Copy)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub(crate) enum ReactorSymbol {
     ReactorSolarI,
@@ -156,7 +157,7 @@ pub(crate) enum ReactorSymbol {
     ReactorAntimatterI,
 }
 
-#[derive(serde::Deserialize, Debug, serde::Serialize)]
+#[derive(Deserialize, Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Engine {
     pub(crate) symbol: EngineSymbol,
@@ -167,7 +168,7 @@ pub(crate) struct Engine {
     pub(crate) requirements: Requirements,
 }
 
-#[derive(serde::Deserialize, Debug, serde::Serialize, PartialEq, Eq)]
+#[derive(Deserialize, Debug, Serialize, PartialEq, Eq, Clone, Copy)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub(crate) enum EngineSymbol {
     EngineImpulseDriveI,
@@ -176,7 +177,7 @@ pub(crate) enum EngineSymbol {
     EngineIonDriveII,
     EngineHyperDriveI,
 }
-#[derive(serde::Deserialize, Debug, serde::Serialize)]
+#[derive(Deserialize, Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Module {
     pub(crate) symbol: ModuleSymbol,
@@ -187,7 +188,7 @@ pub(crate) struct Module {
     pub(crate) requirements: Requirements,
 }
 
-#[derive(serde::Deserialize, Debug, serde::Serialize, PartialEq, Eq)]
+#[derive(Deserialize, Debug, Serialize, PartialEq, Eq, Clone, Copy)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub(crate) enum ModuleSymbol {
     ModuleMineralProcessorI,
@@ -214,7 +215,7 @@ pub(crate) enum ModuleSymbol {
     ModuleShieldGeneratorII,
 }
 
-#[derive(serde::Deserialize, Debug, serde::Serialize)]
+#[derive(Deserialize, Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Requirements {
     pub(crate) power: Option<i32>,
@@ -222,7 +223,7 @@ pub(crate) struct Requirements {
     pub(crate) slots: Option<i32>,
 }
 
-#[derive(serde::Deserialize, Debug, serde::Serialize)]
+#[derive(Deserialize, Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Mount {
     pub(crate) symbol: MountSymbol,
@@ -233,7 +234,7 @@ pub(crate) struct Mount {
     pub(crate) requirements: Requirements,
 }
 
-#[derive(serde::Deserialize, Debug, serde::Serialize, PartialEq, Eq)]
+#[derive(Deserialize, Debug, Serialize, PartialEq, Eq, Clone, Copy)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub(crate) enum Deposit {
     QuartzSand,
@@ -252,7 +253,7 @@ pub(crate) enum Deposit {
     MeritiumOre,
 }
 
-#[derive(serde::Deserialize, Debug, serde::Serialize, PartialEq, Eq)]
+#[derive(Deserialize, Debug, Serialize, PartialEq, Eq, Clone, Copy)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub(crate) enum MountSymbol {
     MountGasSiphonI,
@@ -280,7 +281,7 @@ pub(crate) enum MountSymbol {
     MountTurretI,
 }
 
-#[derive(serde::Deserialize, Debug, serde::Serialize)]
+#[derive(Deserialize, Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Registration {
     name: Name,
@@ -288,7 +289,7 @@ pub(crate) struct Registration {
     pub(crate) role: Role,
 }
 
-#[derive(serde::Deserialize, Debug, serde::Serialize, PartialEq, Eq)]
+#[derive(Deserialize, Debug, Serialize, PartialEq, Eq, Clone, Copy)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub(crate) enum Role {
     Fabricator,
@@ -307,7 +308,7 @@ pub(crate) enum Role {
     Refinery,
 }
 
-#[derive(serde::Deserialize, Debug, serde::Serialize)]
+#[derive(Deserialize, Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Cargo {
     pub(crate) capacity: NonNegative,
@@ -315,7 +316,7 @@ pub(crate) struct Cargo {
     pub(crate) inventory: Vec<InventoryItem>,
 }
 
-#[derive(serde::Deserialize, Debug, serde::Serialize)]
+#[derive(Deserialize, Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct InventoryItem {
     pub(crate) symbol: Symbol,

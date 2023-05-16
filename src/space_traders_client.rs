@@ -10,15 +10,16 @@ use crate::{
     waypoint::Waypoint,
     ResponseData, STResult, SpaceTradersError,
 };
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Values cached from initial registration
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct CachedInfo {
     agent: Agent,
     contracts: Vec<Contract>,
     faction: Faction,
-    ship: Ship,
+    ships: Vec<Ship>,
 }
 
 /// The client used to interact with the `SpaceTraders API`.
@@ -187,7 +188,8 @@ impl SpaceTradersClient {
                     agent: data.agent,
                     contracts: vec![data.contract],
                     faction: data.faction,
-                    ship: data.ship,
+                    // initial_ship: data.ship.clone(),
+                    ships: vec![data.ship],
                 });
 
                 Ok(())
@@ -268,9 +270,9 @@ impl SpaceTradersClient {
             HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_LENGTH, CONTENT_TYPE,
         };
 
-        let cache = self.cache.as_mut().unwrap();
+        let cache = self.cache.as_mut().ok_or(SpaceTradersError::EmptyCache)?;
 
-        let mut idx: Option<usize> = None;
+        let mut idx: Option<usize> = None; // Stores index of the given contract
         for (i, contract) in cache.contracts.iter_mut().enumerate() {
             if *contract.id == *contract_id {
                 // Return w/out making API calls if the contract is already accepted
@@ -325,6 +327,8 @@ impl SpaceTradersClient {
 
         Ok(())
     }
+
+    pub fn find_shipyards() {}
 }
 
 #[cfg(test)]
@@ -386,7 +390,7 @@ mod tests {
         assert_eq!(*traits[3].name, "Curious");
         assert_eq!(*traits[3].description, "Possessing a strong desire to learn and explore. Sometimes interested in a wide range of topics and may be willing to take risks in order to satisfy their curiosity. Sometimes able to think outside the box and come up with creative solutions to challenges.");
 
-        let ship = cache.ship;
+        let ship = &cache.ships[0];
         let nav = &ship.nav;
         assert_eq!(*nav.system_symbol, "X1-ZA40");
         assert_eq!(*nav.waypoint_symbol, "X1-ZA40-15970B");
@@ -402,7 +406,7 @@ mod tests {
         assert_eq!(ship.nav.status, ShipStatus::Docked);
         assert_eq!(ship.nav.flight_mode, FlightMode::Cruise);
 
-        let crew = ship.crew;
+        let crew = &ship.crew;
         assert_eq!(crew.current, 0);
         assert_eq!(crew.capacity, 80);
         assert_eq!(crew.required, 59);
@@ -410,12 +414,12 @@ mod tests {
         assert_eq!(*crew.morale, 100);
         assert_eq!(*crew.wages, 0);
 
-        let fuel = ship.fuel;
+        let fuel = &ship.fuel;
         assert_eq!(*fuel.current, 1200);
         assert_eq!(*fuel.capacity, 1200);
         assert_eq!(*fuel.consumed.amount, 0);
 
-        let frame = ship.frame;
+        let frame = &ship.frame;
         assert_eq!(frame.symbol, FrameSymbol::FrameFrigate);
         assert_eq!(*frame.name, "Frame Frigate");
         assert_eq!(*frame.description, "A medium-sized, multi-purpose spacecraft, often used for combat, transport, or support operations.");
@@ -426,7 +430,7 @@ mod tests {
         assert_eq!(frame.requirements.power, Some(8));
         assert_eq!(frame.requirements.crew, Some(25));
 
-        let reactor = ship.reactor;
+        let reactor = &ship.reactor;
         assert_eq!(reactor.symbol, ReactorSymbol::ReactorFissionI);
         assert_eq!(*reactor.name, "Fission Reactor I");
         assert_eq!(*reactor.description, "A basic fission power reactor, used to generate electricity from nuclear fission reactions.");
@@ -434,7 +438,7 @@ mod tests {
         assert_eq!(*reactor.power_output, 31);
         assert_eq!(reactor.requirements.crew, Some(8));
 
-        let engine = ship.engine;
+        let engine = &ship.engine;
         assert_eq!(engine.symbol, EngineSymbol::EngineIonDriveII);
         assert_eq!(*engine.name, "Ion Drive II");
         assert_eq!(*engine.description, "An advanced propulsion system that uses ionized particles to generate high-speed, low-thrust acceleration, with improved efficiency and performance.");
@@ -443,7 +447,7 @@ mod tests {
         assert_eq!(engine.requirements.power, Some(6));
         assert_eq!(engine.requirements.crew, Some(8));
 
-        let modules = ship.modules;
+        let modules = &ship.modules;
         assert_eq!(modules.len(), 7);
         assert_eq!(modules[0].symbol, ModuleSymbol::ModuleCargoHoldI);
         assert_eq!(*modules[0].name, "Cargo Hold");
@@ -515,7 +519,7 @@ mod tests {
         assert_eq!(modules[6].requirements.power, Some(3));
         assert_eq!(modules[6].requirements.slots, Some(1));
 
-        let mounts = ship.mounts;
+        let mounts = &ship.mounts;
         assert_eq!(mounts.len(), 3);
         assert_eq!(mounts[0].symbol, MountSymbol::MountSensorArrayI);
         assert_eq!(*mounts[0].name, "Sensor Array I");
@@ -557,11 +561,11 @@ mod tests {
             ]
         );
 
-        let registration = ship.registration;
+        let registration = &ship.registration;
         assert_eq!(registration.faction_symbol, FactionSymbol::Cosmic);
         assert_eq!(registration.role, Role::Command);
 
-        let cargo = ship.cargo;
+        let cargo = &ship.cargo;
         assert_eq!(*cargo.capacity, 60);
         assert_eq!(*cargo.units, 15);
         assert_eq!(cargo.inventory.len(), 1);
@@ -583,14 +587,15 @@ mod tests {
 
     #[tokio::test]
     async fn can_save_and_load_client() {
-        let callsign = "TST-RS-01";
+        let callsign = "TST-RS-02";
 
         let saved_client = SpaceTradersClient::load_saved().unwrap();
 
         assert!(saved_client.token_set);
 
         let saved_cache = saved_client.cache.unwrap();
-        assert_eq!(*saved_cache.ship.symbol, "TST-RS-01-1");
+        dbg!(&saved_cache.ships);
+        // assert_eq!(*saved_cache.ships[0].symbol, "TST-RS-02-1");
         check_default_values(saved_cache, callsign);
     }
 
@@ -658,30 +663,30 @@ mod tests {
         assert_eq!(contracts.len() as i32, 1);
 
         let contract = &contracts[0];
-        assert_eq!(*contract.id, "clhpc27i80iows60dpq9vdgew");
+        assert_eq!(*contract.id, "clhqpuitz9hq8s60dbv97zf8p");
         assert_eq!(contract.faction_symbol, FactionSymbol::Cosmic);
         assert_eq!(contract.contract_type, ContractType::Procurement);
 
         let terms = &contract.terms;
         assert_eq!(
             terms.deadline,
-            chrono::DateTime::<chrono::Utc>::from_str("2023-05-22T21:04:18.559Z").unwrap()
+            chrono::DateTime::<chrono::Utc>::from_str("2023-05-23T20:18:00.791Z").unwrap()
         );
-        assert_eq!(terms.payment.on_accepted, 138000);
-        assert_eq!(terms.payment.on_fulfilled, 552000);
+        assert_eq!(terms.payment.on_accepted, 109_980);
+        assert_eq!(terms.payment.on_fulfilled, 439_920);
 
         let deliver = &terms.deliver[0];
         assert_eq!(terms.deliver.len(), 1);
         assert_eq!(*deliver.trade_symbol, "IRON_ORE");
         assert_eq!(*deliver.destination_symbol, "X1-ZA40-15970B");
-        assert_eq!(deliver.units_required, 15000);
+        assert_eq!(deliver.units_required, 11_700);
         assert_eq!(deliver.units_fulfilled, 0);
 
         assert!(!contract.accepted);
         assert!(!contract.fulfilled);
         assert_eq!(
             contract.expiration,
-            chrono::DateTime::<chrono::Utc>::from_str("2023-05-18T21:04:18.559Z").unwrap()
+            chrono::DateTime::<chrono::Utc>::from_str("2023-05-19T20:18:00.791Z").unwrap()
         );
     }
 

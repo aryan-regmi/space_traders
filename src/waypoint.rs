@@ -4,8 +4,9 @@ use crate::{
     conditional_types::{Description, Name, Symbol},
     faction::FactionSymbol,
 };
+use serde::{Deserialize, Serialize};
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Waypoint {
     pub(crate) symbol: Symbol,
@@ -20,7 +21,7 @@ pub struct Waypoint {
     pub(crate) chart: Option<Chart>,
 }
 
-#[derive(serde::Deserialize, Debug, serde::Serialize, PartialEq, Eq)]
+#[derive(Deserialize, Debug, Serialize, PartialEq, Eq, Clone, Copy)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub(crate) enum WaypointType {
     Planet,
@@ -34,19 +35,19 @@ pub(crate) enum WaypointType {
     GravityWell,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct InnerFactionSymbol {
     pub(crate) symbol: FactionSymbol,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct OrbitalSymbol {
     pub(crate) symbol: Symbol,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Trait {
     pub(crate) symbol: WaypointTraitSymbols,
@@ -54,7 +55,7 @@ pub(crate) struct Trait {
     pub(crate) description: Description,
 }
 
-#[derive(serde::Deserialize, Debug, PartialEq, Eq)]
+#[derive(Deserialize, Debug, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub(crate) enum WaypointTraitSymbols {
     Uncharted,
@@ -118,7 +119,7 @@ pub(crate) enum WaypointTraitSymbols {
     Stripped,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Chart {
     pub waypoint_symbol: Option<Symbol>,
