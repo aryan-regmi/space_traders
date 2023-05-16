@@ -3,18 +3,18 @@ pub use strings::*;
 
 pub mod strings {
     use serde::{de::Visitor, Deserialize, Serialize};
-    use std::ops::Deref;
+    use std::{fmt::Display, ops::Deref};
 
     #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
     pub struct NonEmptyString(String);
 
     impl NonEmptyString {
-        pub fn new(string: String) -> Result<Self, NonEmptyStringError> {
+        pub fn new(string: &str) -> Result<Self, NonEmptyStringError> {
             if string.is_empty() {
                 return Err(NonEmptyStringError::EmptyString);
             }
 
-            Ok(Self(string))
+            Ok(Self(string.into()))
         }
     }
 
@@ -36,7 +36,7 @@ pub mod strings {
         type Error = NonEmptyStringError;
 
         fn try_from(value: String) -> Result<Self, Self::Error> {
-            Self::new(value)
+            Self::new(&value)
         }
     }
 
@@ -44,7 +44,25 @@ pub mod strings {
         type Error = NonEmptyStringError;
 
         fn try_from(value: &str) -> Result<Self, Self::Error> {
-            Self::new(value.to_owned())
+            Self::new(value)
+        }
+    }
+
+    impl Display for NonEmptyString {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.write_str(self)
+        }
+    }
+
+    impl PartialEq<&str> for NonEmptyString {
+        fn eq(&self, other: &&str) -> bool {
+            self.0 == *other
+        }
+    }
+
+    impl PartialEq<String> for NonEmptyString {
+        fn eq(&self, other: &String) -> bool {
+            self.0 == *other
         }
     }
 
@@ -61,14 +79,14 @@ pub mod strings {
         where
             E: serde::de::Error,
         {
-            Self::Value::new(v.into()).map_err(|e| E::custom(e))
+            Self::Value::new(v).map_err(|e| E::custom(e))
         }
 
         fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
         where
             E: serde::de::Error,
         {
-            Self::Value::new(v).map_err(|e| E::custom(e))
+            Self::Value::new(&v).map_err(|e| E::custom(e))
         }
     }
 
@@ -110,6 +128,66 @@ pub mod ints {
 
         fn deref(&self) -> &Self::Target {
             &self.0
+        }
+    }
+
+    impl<const MIN: i64> PartialEq<isize> for LowerBoundInt<MIN> {
+        fn eq(&self, other: &isize) -> bool {
+            self.0 as isize == *other
+        }
+    }
+
+    impl<const MIN: i64> PartialEq<usize> for LowerBoundInt<MIN> {
+        fn eq(&self, other: &usize) -> bool {
+            self.0 as usize == *other
+        }
+    }
+
+    impl<const MIN: i64> PartialEq<i64> for LowerBoundInt<MIN> {
+        fn eq(&self, other: &i64) -> bool {
+            self.0 == *other
+        }
+    }
+
+    impl<const MIN: i64> PartialEq<i32> for LowerBoundInt<MIN> {
+        fn eq(&self, other: &i32) -> bool {
+            self.0 as i32 == *other
+        }
+    }
+
+    impl<const MIN: i64> PartialEq<i16> for LowerBoundInt<MIN> {
+        fn eq(&self, other: &i16) -> bool {
+            self.0 as i16 == *other
+        }
+    }
+
+    impl<const MIN: i64> PartialEq<i8> for LowerBoundInt<MIN> {
+        fn eq(&self, other: &i8) -> bool {
+            self.0 as i8 == *other
+        }
+    }
+
+    impl<const MIN: i64> PartialEq<u64> for LowerBoundInt<MIN> {
+        fn eq(&self, other: &u64) -> bool {
+            self.0 as u64 == *other
+        }
+    }
+
+    impl<const MIN: i64> PartialEq<u32> for LowerBoundInt<MIN> {
+        fn eq(&self, other: &u32) -> bool {
+            self.0 as u32 == *other
+        }
+    }
+
+    impl<const MIN: i64> PartialEq<u16> for LowerBoundInt<MIN> {
+        fn eq(&self, other: &u16) -> bool {
+            self.0 as u16 == *other
+        }
+    }
+
+    impl<const MIN: i64> PartialEq<u8> for LowerBoundInt<MIN> {
+        fn eq(&self, other: &u8) -> bool {
+            self.0 as u8 == *other
         }
     }
 
@@ -156,6 +234,74 @@ pub mod ints {
             }
 
             Ok(Self(val))
+        }
+    }
+
+    impl<const MAX: i64> Deref for UpperBoundInt<MAX> {
+        type Target = i64;
+
+        fn deref(&self) -> &Self::Target {
+            &self.0
+        }
+    }
+
+    impl<const MAX: i64> PartialEq<isize> for UpperBoundInt<MAX> {
+        fn eq(&self, other: &isize) -> bool {
+            self.0 as isize == *other
+        }
+    }
+
+    impl<const MAX: i64> PartialEq<usize> for UpperBoundInt<MAX> {
+        fn eq(&self, other: &usize) -> bool {
+            self.0 as usize == *other
+        }
+    }
+
+    impl<const MAX: i64> PartialEq<i64> for UpperBoundInt<MAX> {
+        fn eq(&self, other: &i64) -> bool {
+            self.0 == *other
+        }
+    }
+
+    impl<const MAX: i64> PartialEq<i32> for UpperBoundInt<MAX> {
+        fn eq(&self, other: &i32) -> bool {
+            self.0 as i32 == *other
+        }
+    }
+
+    impl<const MAX: i64> PartialEq<i16> for UpperBoundInt<MAX> {
+        fn eq(&self, other: &i16) -> bool {
+            self.0 as i16 == *other
+        }
+    }
+
+    impl<const MAX: i64> PartialEq<i8> for UpperBoundInt<MAX> {
+        fn eq(&self, other: &i8) -> bool {
+            self.0 as i8 == *other
+        }
+    }
+
+    impl<const MAX: i64> PartialEq<u64> for UpperBoundInt<MAX> {
+        fn eq(&self, other: &u64) -> bool {
+            self.0 as u64 == *other
+        }
+    }
+
+    impl<const MAX: i64> PartialEq<u32> for UpperBoundInt<MAX> {
+        fn eq(&self, other: &u32) -> bool {
+            self.0 as u32 == *other
+        }
+    }
+
+    impl<const MAX: i64> PartialEq<u16> for UpperBoundInt<MAX> {
+        fn eq(&self, other: &u16) -> bool {
+            self.0 as u16 == *other
+        }
+    }
+
+    impl<const MAX: i64> PartialEq<u8> for UpperBoundInt<MAX> {
+        fn eq(&self, other: &u8) -> bool {
+            self.0 as u8 == *other
         }
     }
 
@@ -215,6 +361,59 @@ pub mod ints {
 
         fn deref(&self) -> &Self::Target {
             &self.0
+        }
+    }
+
+    impl<const MIN: i64, const MAX: i64> PartialEq<isize> for BoundedInt<MIN, MAX> {
+        fn eq(&self, other: &isize) -> bool {
+            self.0 as isize == *other
+        }
+    }
+
+    impl<const MIN: i64, const MAX: i64> PartialEq<usize> for BoundedInt<MIN, MAX> {
+        fn eq(&self, other: &usize) -> bool {
+            self.0 as usize == *other
+        }
+    }
+
+    impl<const MIN: i64, const MAX: i64> PartialEq<i64> for BoundedInt<MIN, MAX> {
+        fn eq(&self, other: &i64) -> bool {
+            self.0 == *other
+        }
+    }
+    impl<const MIN: i64, const MAX: i64> PartialEq<i32> for BoundedInt<MIN, MAX> {
+        fn eq(&self, other: &i32) -> bool {
+            self.0 as i32 == *other
+        }
+    }
+    impl<const MIN: i64, const MAX: i64> PartialEq<i16> for BoundedInt<MIN, MAX> {
+        fn eq(&self, other: &i16) -> bool {
+            self.0 as i16 == *other
+        }
+    }
+    impl<const MIN: i64, const MAX: i64> PartialEq<i8> for BoundedInt<MIN, MAX> {
+        fn eq(&self, other: &i8) -> bool {
+            self.0 as i8 == *other
+        }
+    }
+    impl<const MIN: i64, const MAX: i64> PartialEq<u64> for BoundedInt<MIN, MAX> {
+        fn eq(&self, other: &u64) -> bool {
+            self.0 as u64 == *other
+        }
+    }
+    impl<const MIN: i64, const MAX: i64> PartialEq<u32> for BoundedInt<MIN, MAX> {
+        fn eq(&self, other: &u32) -> bool {
+            self.0 as u32 == *other
+        }
+    }
+    impl<const MIN: i64, const MAX: i64> PartialEq<u16> for BoundedInt<MIN, MAX> {
+        fn eq(&self, other: &u16) -> bool {
+            self.0 as u16 == *other
+        }
+    }
+    impl<const MIN: i64, const MAX: i64> PartialEq<u8> for BoundedInt<MIN, MAX> {
+        fn eq(&self, other: &u8) -> bool {
+            self.0 as u8 == *other
         }
     }
 

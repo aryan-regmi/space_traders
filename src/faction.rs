@@ -10,7 +10,7 @@ pub(crate) struct Faction {
     pub(crate) traits: Vec<Trait>,
 }
 
-#[derive(serde::Deserialize, Debug, Clone, serde::Serialize, PartialEq, Eq)]
+#[derive(serde::Deserialize, Debug, Clone, Copy, serde::Serialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum FactionSymbol {
     Cosmic,

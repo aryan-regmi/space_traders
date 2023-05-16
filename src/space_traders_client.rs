@@ -7,11 +7,11 @@ use crate::{
     faction::{Faction, FactionSymbol},
     prelude::Id,
     ship::Ship,
-    waypoint::Waypoint,
+    waypoint::{Waypoint, WaypointTraitSymbols},
     ResponseData, STResult, SpaceTradersError,
 };
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{collections::HashMap, vec};
 
 /// Values cached from initial registration
 #[derive(Debug, Serialize, Deserialize)]
@@ -233,7 +233,7 @@ impl SpaceTradersClient {
 
         let url = format!(
             "https://api.spacetraders.io/v2/systems/{}/waypoints/{}",
-            *system_symbol, *waypoint_symbol
+            system_symbol, waypoint_symbol
         );
 
         let header = (AUTHORIZATION, self.token.as_ref().unwrap());
@@ -274,7 +274,7 @@ impl SpaceTradersClient {
 
         let mut idx: Option<usize> = None; // Stores index of the given contract
         for (i, contract) in cache.contracts.iter_mut().enumerate() {
-            if *contract.id == *contract_id {
+            if contract.id == contract_id {
                 // Return w/out making API calls if the contract is already accepted
                 if contract.accepted {
                     return Ok(());
@@ -287,12 +287,14 @@ impl SpaceTradersClient {
 
         // The contract id was not found in the cached data
         if idx.is_none() {
-            return Err(SpaceTradersError::InvalidContractId((*contract_id).clone()));
+            return Err(SpaceTradersError::InvalidContractId(
+                contract_id.to_string(),
+            ));
         }
 
         let url = format!(
             "https://api.spacetraders.io/v2/my/contracts/{}/accept",
-            *contract_id
+            contract_id
         );
 
         let mut headers = HeaderMap::new();
@@ -328,7 +330,59 @@ impl SpaceTradersClient {
         Ok(())
     }
 
-    pub fn find_shipyards() {}
+    pub fn starting_system(&self) -> STResult<Symbol> {
+        if let Some(cache) = &self.cache {
+            Ok(cache.ships[0].nav.system_symbol.clone())
+        } else {
+            Err(SpaceTradersError::EmptyCache)
+        }
+    }
+
+    // TODO: Cache shipyards?
+    //
+    /// Finds a shipyard in the system.
+    pub async fn find_shipyards(&self, system_symbol: Symbol) -> STResult<Vec<Waypoint>> {
+        use reqwest::header::{HeaderValue, AUTHORIZATION};
+
+        let url = format!(
+            "https://api.spacetraders.io/v2/systems/{}/waypoints",
+            system_symbol
+        );
+
+        let header = (
+            AUTHORIZATION,
+            HeaderValue::from_str(&format!("Bearer {}", self.token.as_ref().unwrap())).unwrap(),
+        );
+
+        // Send request
+        let res = self
+            .client
+            .get(url)
+            .header(header.0, header.1)
+            .send()
+            .await?;
+
+        let mut shipyards: Vec<Waypoint> = vec![];
+        match res.json::<ResponseData<Waypoint>>().await? {
+            ResponseData::Data { .. } => unreachable!(),
+            ResponseData::PaginatedData { data, .. } => {
+                // FIXME: Properly handle paginated data!!
+
+                for waypoint in data {
+                    for tr in &waypoint.traits {
+                        if tr.symbol == WaypointTraitSymbols::Shipyard {
+                            shipyards.push(waypoint.clone())
+                        }
+                    }
+                }
+
+                Ok(shipyards)
+            }
+            ResponseData::Error { error } => {
+                Err(SpaceTradersError::SpaceTradersResponseError(error))
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -357,8 +411,8 @@ mod tests {
 
     fn check_default_values(cache: CachedInfo, callsign: &str) {
         let agent = cache.agent;
-        assert_eq!(*agent.symbol, callsign);
-        assert_eq!(*agent.headquarters, "X1-ZA40-15970B");
+        assert_eq!(agent.symbol, callsign);
+        assert_eq!(agent.headquarters, "X1-ZA40-15970B");
         assert_eq!(agent.credits, 100_000);
 
         let contracts = cache.contracts;
@@ -371,36 +425,36 @@ mod tests {
 
         let faction = cache.faction;
         assert_eq!(faction.symbol, FactionSymbol::Cosmic);
-        assert_eq!(*faction.name, "Cosmic Engineers");
-        assert_eq!(*faction.description, "The Cosmic Engineers are a group of highly advanced scientists and engineers who seek to terraform and colonize new worlds, pushing the boundaries of technology and exploration.");
-        assert_eq!(*faction.headquarters, "X1-ZA40-15970B");
+        assert_eq!(faction.name, "Cosmic Engineers");
+        assert_eq!(faction.description, "The Cosmic Engineers are a group of highly advanced scientists and engineers who seek to terraform and colonize new worlds, pushing the boundaries of technology and exploration.");
+        assert_eq!(faction.headquarters, "X1-ZA40-15970B");
         assert_eq!(faction.traits.len(), 4);
 
         let traits = faction.traits;
         assert_eq!(traits[0].symbol, FactionTraitSymbol::Innovative);
-        assert_eq!(*traits[0].name, "Innovative");
-        assert_eq!(*traits[0].description, "Willing to try new and untested ideas. Sometimes able to come up with creative and original solutions to problems, and may be able to think outside the box. Sometimes at the forefront of technological or social change, and may be willing to take risks in order to advance the boundaries of human knowledge and understanding.");
+        assert_eq!(traits[0].name, "Innovative");
+        assert_eq!(traits[0].description, "Willing to try new and untested ideas. Sometimes able to come up with creative and original solutions to problems, and may be able to think outside the box. Sometimes at the forefront of technological or social change, and may be willing to take risks in order to advance the boundaries of human knowledge and understanding.");
         assert_eq!(traits[1].symbol, FactionTraitSymbol::Bold);
-        assert_eq!(*traits[1].name, "Bold");
-        assert_eq!(*traits[1].description, "Unafraid to take risks and challenge the status quo. Sometimes willing to do things that others would not dare, and may be able to overcome obstacles and challenges that would be insurmountable for others. Sometimes able to inspire and motivate others to take bold action as well.");
+        assert_eq!(traits[1].name, "Bold");
+        assert_eq!(traits[1].description, "Unafraid to take risks and challenge the status quo. Sometimes willing to do things that others would not dare, and may be able to overcome obstacles and challenges that would be insurmountable for others. Sometimes able to inspire and motivate others to take bold action as well.");
         assert_eq!(traits[2].symbol, FactionTraitSymbol::Visionary);
-        assert_eq!(*traits[2].name, "Visionary");
-        assert_eq!(*traits[2].description, "Possessing a clear and compelling vision for the future. Sometimes able to see beyond the present and anticipate the needs and challenges of tomorrow. Sometimes able to inspire and guide others towards a better and brighter future, and may be willing to take bold and decisive action to make their vision a reality.");
+        assert_eq!(traits[2].name, "Visionary");
+        assert_eq!(traits[2].description, "Possessing a clear and compelling vision for the future. Sometimes able to see beyond the present and anticipate the needs and challenges of tomorrow. Sometimes able to inspire and guide others towards a better and brighter future, and may be willing to take bold and decisive action to make their vision a reality.");
         assert_eq!(traits[3].symbol, FactionTraitSymbol::Curious);
-        assert_eq!(*traits[3].name, "Curious");
-        assert_eq!(*traits[3].description, "Possessing a strong desire to learn and explore. Sometimes interested in a wide range of topics and may be willing to take risks in order to satisfy their curiosity. Sometimes able to think outside the box and come up with creative solutions to challenges.");
+        assert_eq!(traits[3].name, "Curious");
+        assert_eq!(traits[3].description, "Possessing a strong desire to learn and explore. Sometimes interested in a wide range of topics and may be willing to take risks in order to satisfy their curiosity. Sometimes able to think outside the box and come up with creative solutions to challenges.");
 
         let ship = &cache.ships[0];
         let nav = &ship.nav;
-        assert_eq!(*nav.system_symbol, "X1-ZA40");
-        assert_eq!(*nav.waypoint_symbol, "X1-ZA40-15970B");
-        assert_eq!(*nav.route.departure.symbol, "X1-ZA40-15970B");
-        assert_eq!(*nav.route.departure.system_symbol, "X1-ZA40");
+        assert_eq!(nav.system_symbol, "X1-ZA40");
+        assert_eq!(nav.waypoint_symbol, "X1-ZA40-15970B");
+        assert_eq!(nav.route.departure.symbol, "X1-ZA40-15970B");
+        assert_eq!(nav.route.departure.system_symbol, "X1-ZA40");
         assert_eq!(nav.route.departure.x, 10);
         assert_eq!(nav.route.departure.y, 0);
-        assert_eq!(*nav.route.destination.symbol, "X1-ZA40-15970B");
+        assert_eq!(nav.route.destination.symbol, "X1-ZA40-15970B");
         assert_eq!(nav.route.destination.waypoint_type, WaypointType::Planet);
-        assert_eq!(*ship.nav.route.destination.system_symbol, "X1-ZA40");
+        assert_eq!(ship.nav.route.destination.system_symbol, "X1-ZA40");
         assert_eq!(ship.nav.route.destination.x, 10);
         assert_eq!(ship.nav.route.destination.y, 0);
         assert_eq!(ship.nav.status, ShipStatus::Docked);
@@ -411,110 +465,110 @@ mod tests {
         assert_eq!(crew.capacity, 80);
         assert_eq!(crew.required, 59);
         assert_eq!(crew.rotation, Rotation::Strict);
-        assert_eq!(*crew.morale, 100);
-        assert_eq!(*crew.wages, 0);
+        assert_eq!(crew.morale, 100);
+        assert_eq!(crew.wages, 0);
 
         let fuel = &ship.fuel;
-        assert_eq!(*fuel.current, 1200);
-        assert_eq!(*fuel.capacity, 1200);
-        assert_eq!(*fuel.consumed.amount, 0);
+        assert_eq!(fuel.current, 1200);
+        assert_eq!(fuel.capacity, 1200);
+        assert_eq!(fuel.consumed.amount, 0);
 
         let frame = &ship.frame;
         assert_eq!(frame.symbol, FrameSymbol::FrameFrigate);
-        assert_eq!(*frame.name, "Frame Frigate");
-        assert_eq!(*frame.description, "A medium-sized, multi-purpose spacecraft, often used for combat, transport, or support operations.");
-        assert_eq!(*frame.module_slots, 8);
-        assert_eq!(*frame.mounting_points, 5);
-        assert_eq!(*frame.fuel_capacity, 1200);
-        assert_eq!(*frame.condition, 100);
+        assert_eq!(frame.name, "Frame Frigate");
+        assert_eq!(frame.description, "A medium-sized, multi-purpose spacecraft, often used for combat, transport, or support operations.");
+        assert_eq!(frame.module_slots, 8);
+        assert_eq!(frame.mounting_points, 5);
+        assert_eq!(frame.fuel_capacity, 1200);
+        assert_eq!(frame.condition, 100);
         assert_eq!(frame.requirements.power, Some(8));
         assert_eq!(frame.requirements.crew, Some(25));
 
         let reactor = &ship.reactor;
         assert_eq!(reactor.symbol, ReactorSymbol::ReactorFissionI);
-        assert_eq!(*reactor.name, "Fission Reactor I");
-        assert_eq!(*reactor.description, "A basic fission power reactor, used to generate electricity from nuclear fission reactions.");
-        assert_eq!(*reactor.condition, 100);
-        assert_eq!(*reactor.power_output, 31);
+        assert_eq!(reactor.name, "Fission Reactor I");
+        assert_eq!(reactor.description, "A basic fission power reactor, used to generate electricity from nuclear fission reactions.");
+        assert_eq!(reactor.condition, 100);
+        assert_eq!(reactor.power_output, 31);
         assert_eq!(reactor.requirements.crew, Some(8));
 
         let engine = &ship.engine;
         assert_eq!(engine.symbol, EngineSymbol::EngineIonDriveII);
-        assert_eq!(*engine.name, "Ion Drive II");
-        assert_eq!(*engine.description, "An advanced propulsion system that uses ionized particles to generate high-speed, low-thrust acceleration, with improved efficiency and performance.");
-        assert_eq!(*engine.condition, 100);
-        assert_eq!(*engine.speed, 30);
+        assert_eq!(engine.name, "Ion Drive II");
+        assert_eq!(engine.description, "An advanced propulsion system that uses ionized particles to generate high-speed, low-thrust acceleration, with improved efficiency and performance.");
+        assert_eq!(engine.condition, 100);
+        assert_eq!(engine.speed, 30);
         assert_eq!(engine.requirements.power, Some(6));
         assert_eq!(engine.requirements.crew, Some(8));
 
         let modules = &ship.modules;
         assert_eq!(modules.len(), 7);
         assert_eq!(modules[0].symbol, ModuleSymbol::ModuleCargoHoldI);
-        assert_eq!(*modules[0].name, "Cargo Hold");
+        assert_eq!(modules[0].name, "Cargo Hold");
         assert_eq!(
-            *modules[0].description,
+            modules[0].description,
             "A module that increases a ship's cargo capacity."
         );
-        assert_eq!(**modules[0].capacity.as_ref().unwrap(), 30);
+        assert_eq!(*modules[0].capacity.as_ref().unwrap(), 30);
         assert_eq!(modules[0].requirements.crew, Some(0));
         assert_eq!(modules[0].requirements.power, Some(1));
         assert_eq!(modules[0].requirements.slots, Some(1));
         assert_eq!(modules[1].symbol, ModuleSymbol::ModuleCargoHoldI);
-        assert_eq!(*modules[1].name, "Cargo Hold");
+        assert_eq!(modules[1].name, "Cargo Hold");
         assert_eq!(
-            *modules[1].description,
+            modules[1].description,
             "A module that increases a ship's cargo capacity."
         );
-        assert_eq!(**modules[1].capacity.as_ref().unwrap(), 30);
+        assert_eq!(*modules[1].capacity.as_ref().unwrap(), 30);
         assert_eq!(modules[1].requirements.crew, Some(0));
         assert_eq!(modules[1].requirements.power, Some(1));
         assert_eq!(modules[1].requirements.slots, Some(1));
         assert_eq!(modules[2].symbol, ModuleSymbol::ModuleCrewQuartersI);
-        assert_eq!(*modules[2].name, "Crew Quarters");
+        assert_eq!(modules[2].name, "Crew Quarters");
         assert_eq!(
-            *modules[2].description,
+            modules[2].description,
             "A module that provides living space and amenities for the crew."
         );
-        assert_eq!(**modules[2].capacity.as_ref().unwrap(), 40);
+        assert_eq!(*modules[2].capacity.as_ref().unwrap(), 40);
         assert_eq!(modules[2].requirements.crew, Some(2));
         assert_eq!(modules[2].requirements.power, Some(1));
         assert_eq!(modules[2].requirements.slots, Some(1));
         assert_eq!(modules[3].symbol, ModuleSymbol::ModuleCrewQuartersI);
-        assert_eq!(*modules[3].name, "Crew Quarters");
+        assert_eq!(modules[3].name, "Crew Quarters");
         assert_eq!(
-            *modules[3].description,
+            modules[3].description,
             "A module that provides living space and amenities for the crew."
         );
-        assert_eq!(**modules[3].capacity.as_ref().unwrap(), 40);
+        assert_eq!(*modules[3].capacity.as_ref().unwrap(), 40);
         assert_eq!(modules[3].requirements.crew, Some(2));
         assert_eq!(modules[3].requirements.power, Some(1));
         assert_eq!(modules[3].requirements.slots, Some(1));
         assert_eq!(modules[4].symbol, ModuleSymbol::ModuleMineralProcessorI);
-        assert_eq!(*modules[4].name, "Mineral Processor");
+        assert_eq!(modules[4].name, "Mineral Processor");
         assert_eq!(
-            *modules[4].description,
+            modules[4].description,
             "Crushes and processes extracted minerals and ores into their component parts, filters out impurities, and containerizes them into raw storage units."
         );
         assert_eq!(modules[4].requirements.crew, Some(0));
         assert_eq!(modules[4].requirements.power, Some(1));
         assert_eq!(modules[4].requirements.slots, Some(2));
         assert_eq!(modules[5].symbol, ModuleSymbol::ModuleJumpDriveI);
-        assert_eq!(*modules[5].name, "Jump Drive I");
+        assert_eq!(modules[5].name, "Jump Drive I");
         assert_eq!(
-            *modules[5].description,
+            modules[5].description,
             "A basic antimatter jump drive that allows for instantaneous short-range interdimensional travel."
         );
-        assert_eq!(**modules[5].range.as_ref().unwrap(), 500);
+        assert_eq!(*modules[5].range.as_ref().unwrap(), 500);
         assert_eq!(modules[5].requirements.crew, Some(10));
         assert_eq!(modules[5].requirements.power, Some(4));
         assert_eq!(modules[5].requirements.slots, Some(1));
         assert_eq!(modules[6].symbol, ModuleSymbol::ModuleWarpDriveI);
-        assert_eq!(*modules[6].name, "Warp Drive I");
+        assert_eq!(modules[6].name, "Warp Drive I");
         assert_eq!(
-            *modules[6].description,
+            modules[6].description,
             "A basic warp drive that allows for short-range interstellar travel."
         );
-        assert_eq!(**modules[6].range.as_ref().unwrap(), 2000);
+        assert_eq!(*modules[6].range.as_ref().unwrap(), 2000);
         assert_eq!(modules[6].requirements.crew, Some(2));
         assert_eq!(modules[6].requirements.power, Some(3));
         assert_eq!(modules[6].requirements.slots, Some(1));
@@ -522,31 +576,31 @@ mod tests {
         let mounts = &ship.mounts;
         assert_eq!(mounts.len(), 3);
         assert_eq!(mounts[0].symbol, MountSymbol::MountSensorArrayI);
-        assert_eq!(*mounts[0].name, "Sensor Array I");
-        assert_eq!(*mounts[0].description, "A basic sensor array that improves a ship's ability to detect and track other objects in space.");
-        assert_eq!(*mounts[0].strength, 1);
+        assert_eq!(mounts[0].name, "Sensor Array I");
+        assert_eq!(mounts[0].description, "A basic sensor array that improves a ship's ability to detect and track other objects in space.");
+        assert_eq!(mounts[0].strength, 1);
         assert_eq!(mounts[0].requirements.crew, Some(0));
         assert_eq!(mounts[0].requirements.power, Some(1));
         assert_eq!(mounts[1].symbol, MountSymbol::MountMiningLaserI);
-        assert_eq!(*mounts[1].name, "Mining Laser I");
-        assert_eq!(*mounts[1].description, "A basic mining laser that can be used to extract valuable minerals from asteroids and other space objects.");
-        assert_eq!(*mounts[1].strength, 10);
+        assert_eq!(mounts[1].name, "Mining Laser I");
+        assert_eq!(mounts[1].description, "A basic mining laser that can be used to extract valuable minerals from asteroids and other space objects.");
+        assert_eq!(mounts[1].strength, 10);
         assert_eq!(mounts[1].requirements.crew, Some(0));
         assert_eq!(mounts[1].requirements.power, Some(1));
         assert_eq!(mounts[2].symbol, MountSymbol::MountSurveyorI);
-        assert_eq!(*mounts[2].name, "Surveyor I");
+        assert_eq!(mounts[2].name, "Surveyor I");
         assert_eq!(
-            *mounts[2].description,
+            mounts[2].description,
             "A basic survey probe that can be used to gather information about a mineral deposit."
         );
-        assert_eq!(*mounts[2].strength, 1);
+        assert_eq!(mounts[2].strength, 1);
         assert_eq!(mounts[2].requirements.crew, Some(2));
         assert_eq!(mounts[2].requirements.power, Some(1));
         let deposits = mounts[2].deposits.as_ref().unwrap();
         assert_eq!(deposits.len(), 11);
         assert_eq!(
-            *deposits,
-            vec![
+            deposits,
+            &vec![
                 Deposit::QuartzSand,
                 Deposit::SiliconCrystals,
                 Deposit::PreciousStones,
@@ -566,13 +620,13 @@ mod tests {
         assert_eq!(registration.role, Role::Command);
 
         let cargo = &ship.cargo;
-        assert_eq!(*cargo.capacity, 60);
-        assert_eq!(*cargo.units, 15);
+        assert_eq!(cargo.capacity, 60);
+        assert_eq!(cargo.units, 15);
         assert_eq!(cargo.inventory.len(), 1);
-        assert_eq!(*cargo.inventory[0].symbol, "ANTIMATTER");
-        assert_eq!(*cargo.inventory[0].name, "Antimatter");
-        assert_eq!(*cargo.inventory[0].description, "A highly valuable and dangerous substance used for advanced propulsion and weapons systems.");
-        assert_eq!(*cargo.inventory[0].units, 15);
+        assert_eq!(cargo.inventory[0].symbol, "ANTIMATTER");
+        assert_eq!(cargo.inventory[0].name, "Antimatter");
+        assert_eq!(cargo.inventory[0].description, "A highly valuable and dangerous substance used for advanced propulsion and weapons systems.");
+        assert_eq!(cargo.inventory[0].units, 15);
     }
 
     #[tokio::test]
@@ -594,44 +648,43 @@ mod tests {
         assert!(saved_client.token_set);
 
         let saved_cache = saved_client.cache.unwrap();
-        dbg!(&saved_cache.ships);
-        // assert_eq!(*saved_cache.ships[0].symbol, "TST-RS-02-1");
+        assert_eq!(saved_cache.ships[0].symbol, "TST-RS-02-1");
         check_default_values(saved_cache, callsign);
     }
 
     fn check_waypoint_default_valies(waypoint: Waypoint) {
-        assert_eq!(*waypoint.system_symbol, "X1-ZA40");
-        assert_eq!(*waypoint.symbol, "X1-ZA40-15970B");
+        assert_eq!(waypoint.system_symbol, "X1-ZA40");
+        assert_eq!(waypoint.symbol, "X1-ZA40-15970B");
         assert_eq!(waypoint.waypoint_type, WaypointType::Planet);
         assert_eq!(waypoint.x, 10);
         assert_eq!(waypoint.y, 0);
 
         let orbitals = waypoint.orbitals;
         assert_eq!(orbitals.len(), 3);
-        assert_eq!(*orbitals[0].symbol, "X1-ZA40-69371X");
-        assert_eq!(*orbitals[1].symbol, "X1-ZA40-97262C");
-        assert_eq!(*orbitals[2].symbol, "X1-ZA40-11513D");
+        assert_eq!(orbitals[0].symbol, "X1-ZA40-69371X");
+        assert_eq!(orbitals[1].symbol, "X1-ZA40-97262C");
+        assert_eq!(orbitals[2].symbol, "X1-ZA40-11513D");
 
         let traits = waypoint.traits;
         assert_eq!(traits.len(), 5);
         assert_eq!(traits[0].symbol, WaypointTraitSymbols::Overcrowded);
-        assert_eq!(*traits[0].name, "Overcrowded");
-        assert_eq!(*traits[0].description, "A waypoint teeming with inhabitants, leading to cramped living conditions and a high demand for resources.");
+        assert_eq!(traits[0].name, "Overcrowded");
+        assert_eq!(traits[0].description, "A waypoint teeming with inhabitants, leading to cramped living conditions and a high demand for resources.");
         assert_eq!(traits[1].symbol, WaypointTraitSymbols::HighTech);
-        assert_eq!(*traits[1].name, "High-Tech");
-        assert_eq!(*traits[1].description, "A center of innovation and cutting-edge technology, driving progress and attracting skilled individuals from around the galaxy.");
+        assert_eq!(traits[1].name, "High-Tech");
+        assert_eq!(traits[1].description, "A center of innovation and cutting-edge technology, driving progress and attracting skilled individuals from around the galaxy.");
         assert_eq!(traits[2].symbol, WaypointTraitSymbols::Bureaucratic);
-        assert_eq!(*traits[2].name, "Bureaucratic");
-        assert_eq!(*traits[2].description, "A waypoint governed by complex regulations, red tape, and layers of administration, often leading to inefficiencies and frustration.");
+        assert_eq!(traits[2].name, "Bureaucratic");
+        assert_eq!(traits[2].description, "A waypoint governed by complex regulations, red tape, and layers of administration, often leading to inefficiencies and frustration.");
         assert_eq!(traits[3].symbol, WaypointTraitSymbols::Temperate);
-        assert_eq!(*traits[3].name, "Temperate");
-        assert_eq!(*traits[3].description, "A world with a mild climate and balanced ecosystem, providing a comfortable environment for a variety of life forms and supporting diverse industries.");
+        assert_eq!(traits[3].name, "Temperate");
+        assert_eq!(traits[3].description, "A world with a mild climate and balanced ecosystem, providing a comfortable environment for a variety of life forms and supporting diverse industries.");
         assert_eq!(traits[4].symbol, WaypointTraitSymbols::Marketplace);
-        assert_eq!(*traits[4].name, "Marketplace");
-        assert_eq!(*traits[4].description, "A thriving center of commerce where traders from across the galaxy gather to buy, sell, and exchange goods.");
+        assert_eq!(traits[4].name, "Marketplace");
+        assert_eq!(traits[4].description, "A thriving center of commerce where traders from across the galaxy gather to buy, sell, and exchange goods.");
 
         let chart = waypoint.chart.unwrap();
-        assert_eq!(*chart.submitted_by.unwrap(), "COSMIC");
+        assert_eq!(chart.submitted_by.unwrap(), "COSMIC");
         let submitted_on: chrono::DateTime<chrono::Utc> =
             chrono::DateTime::from_str("2023-05-13T17:48:46.579Z").unwrap();
         assert_eq!(chart.submitted_on, submitted_on);
@@ -663,7 +716,7 @@ mod tests {
         assert_eq!(contracts.len() as i32, 1);
 
         let contract = &contracts[0];
-        assert_eq!(*contract.id, "clhqpuitz9hq8s60dbv97zf8p");
+        assert_eq!(contract.id, "clhqpuitz9hq8s60dbv97zf8p");
         assert_eq!(contract.faction_symbol, FactionSymbol::Cosmic);
         assert_eq!(contract.contract_type, ContractType::Procurement);
 
@@ -677,8 +730,8 @@ mod tests {
 
         let deliver = &terms.deliver[0];
         assert_eq!(terms.deliver.len(), 1);
-        assert_eq!(*deliver.trade_symbol, "IRON_ORE");
-        assert_eq!(*deliver.destination_symbol, "X1-ZA40-15970B");
+        assert_eq!(deliver.trade_symbol, "IRON_ORE");
+        assert_eq!(deliver.destination_symbol, "X1-ZA40-15970B");
         assert_eq!(deliver.units_required, 11_700);
         assert_eq!(deliver.units_fulfilled, 0);
 
@@ -706,5 +759,22 @@ mod tests {
 
         let credits = 100_000 + contract.terms.payment.on_accepted;
         assert_eq!(client.agent().unwrap().credits, credits);
+    }
+
+    #[tokio::test]
+    async fn can_find_shipyards() -> STResult<()> {
+        let client = SpaceTradersClient::load_saved()?;
+
+        let shipyards = &client.find_shipyards(client.starting_system()?).await?;
+
+        assert_eq!(shipyards.len(), 1);
+        assert_eq!(shipyards[0].symbol, "X1-ZA40-68707C");
+        assert_eq!(shipyards[0].waypoint_type, WaypointType::OrbitalStation);
+        assert_eq!(shipyards[0].system_symbol, "X1-ZA40");
+        assert_eq!(shipyards[0].x, -44);
+        assert_eq!(shipyards[0].y, -22);
+        assert!(shipyards[0].orbitals.is_empty());
+
+        Ok(())
     }
 }
