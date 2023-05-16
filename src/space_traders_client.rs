@@ -5,9 +5,7 @@ use crate::{
     conditional_types::strings::Symbol,
     contract::Contract,
     faction::{Faction, FactionSymbol},
-    prelude::Id,
     ship::Ship,
-    waypoint::{Waypoint, WaypointTraitSymbols},
     ResponseData, STResult, SpaceTradersError,
 };
 use serde::{Deserialize, Serialize};
@@ -15,20 +13,20 @@ use std::{collections::HashMap, vec};
 
 /// Values cached from initial registration
 #[derive(Debug, Serialize, Deserialize)]
-struct CachedInfo {
-    agent: Agent,
-    contracts: Vec<Contract>,
-    faction: Faction,
-    ships: Vec<Ship>,
+pub(crate) struct CachedInfo {
+    pub(crate) agent: Agent,
+    pub(crate) contracts: Vec<Contract>,
+    pub(crate) faction: Faction,
+    pub(crate) ships: Vec<Ship>,
 }
 
 /// The client used to interact with the `SpaceTraders API`.
 #[derive(Debug)]
 pub struct SpaceTradersClient {
-    client: reqwest::Client,
-    token: Option<String>,
-    token_set: bool,
-    cache: Option<CachedInfo>,
+    pub(crate) client: reqwest::Client,
+    pub(crate) token: Option<String>,
+    pub(crate) token_set: bool,
+    pub(crate) cache: Option<CachedInfo>,
 }
 
 impl Default for SpaceTradersClient {
@@ -219,42 +217,6 @@ impl SpaceTradersClient {
         Err(SpaceTradersError::EmptyCache)
     }
 
-    /// Get info on a specific waypoint.
-    pub async fn view_waypoint(
-        &self,
-        system_symbol: Symbol,
-        waypoint_symbol: Symbol,
-    ) -> STResult<Waypoint> {
-        use reqwest::header::AUTHORIZATION;
-
-        if !self.token_set || self.token.is_none() {
-            return Err(SpaceTradersError::TokenNotSet);
-        }
-
-        let url = format!(
-            "https://api.spacetraders.io/v2/systems/{}/waypoints/{}",
-            system_symbol, waypoint_symbol
-        );
-
-        let header = (AUTHORIZATION, self.token.as_ref().unwrap());
-
-        // Send request
-        let res = self
-            .client
-            .get(url)
-            .header(header.0, header.1)
-            .send()
-            .await?;
-
-        match res.json::<ResponseData<Waypoint>>().await? {
-            ResponseData::Data { data } => Ok(data),
-            ResponseData::PaginatedData { .. } => unreachable!(),
-            ResponseData::Error { error } => {
-                Err(SpaceTradersError::SpaceTradersResponseError(error))
-            }
-        }
-    }
-
     /// Get all contracts associated w/ the current agent.
     pub fn contracts(&self) -> STResult<&Vec<Contract>> {
         if let Some(cache) = &self.cache {
@@ -264,72 +226,6 @@ impl SpaceTradersClient {
         Err(SpaceTradersError::EmptyCache)
     }
 
-    /// Accept a specific contract given its ID.
-    pub async fn accept_contract(&mut self, contract_id: Id) -> STResult<()> {
-        use reqwest::header::{
-            HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_LENGTH, CONTENT_TYPE,
-        };
-
-        let cache = self.cache.as_mut().ok_or(SpaceTradersError::EmptyCache)?;
-
-        let mut idx: Option<usize> = None; // Stores index of the given contract
-        for (i, contract) in cache.contracts.iter_mut().enumerate() {
-            if contract.id == contract_id {
-                // Return w/out making API calls if the contract is already accepted
-                if contract.accepted {
-                    return Ok(());
-                } else {
-                    idx = Some(i);
-                    break;
-                }
-            }
-        }
-
-        // The contract id was not found in the cached data
-        if idx.is_none() {
-            return Err(SpaceTradersError::InvalidContractId(
-                contract_id.to_string(),
-            ));
-        }
-
-        let url = format!(
-            "https://api.spacetraders.io/v2/my/contracts/{}/accept",
-            contract_id
-        );
-
-        let mut headers = HeaderMap::new();
-        headers.insert(
-            AUTHORIZATION,
-            HeaderValue::from_str(&format!("Bearer {}", self.token.as_ref().unwrap()))
-                .map_err(SpaceTradersError::ReqwestHeaderError)?,
-        );
-        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-        headers.insert(CONTENT_LENGTH, HeaderValue::from_static("0"));
-
-        // Send request
-        let res = self.client.post(url).headers(headers).send().await?;
-
-        #[derive(Debug, serde::Deserialize)]
-        struct AcceptContractResponse {
-            #[serde(rename = "agent")]
-            _agent: Agent,
-            #[serde(rename = "contract")]
-            _contract: Contract,
-        }
-
-        if let ResponseData::Error { error } =
-            res.json::<ResponseData<AcceptContractResponse>>().await?
-        {
-            return Err(SpaceTradersError::SpaceTradersResponseError(error));
-        }
-
-        // Find the contract with the given id, and set accepted to true
-        cache.contracts[idx.unwrap()].accepted = true;
-        cache.agent.credits += cache.contracts[idx.unwrap()].terms.payment.on_accepted;
-
-        Ok(())
-    }
-
     pub fn starting_system(&self) -> STResult<Symbol> {
         if let Some(cache) = &self.cache {
             Ok(cache.ships[0].nav.system_symbol.clone())
@@ -337,58 +233,10 @@ impl SpaceTradersClient {
             Err(SpaceTradersError::EmptyCache)
         }
     }
-
-    // TODO: Cache shipyards?
-    //
-    /// Finds a shipyard in the system.
-    pub async fn find_shipyards(&self, system_symbol: Symbol) -> STResult<Vec<Waypoint>> {
-        use reqwest::header::{HeaderValue, AUTHORIZATION};
-
-        let url = format!(
-            "https://api.spacetraders.io/v2/systems/{}/waypoints",
-            system_symbol
-        );
-
-        let header = (
-            AUTHORIZATION,
-            HeaderValue::from_str(&format!("Bearer {}", self.token.as_ref().unwrap())).unwrap(),
-        );
-
-        // Send request
-        let res = self
-            .client
-            .get(url)
-            .header(header.0, header.1)
-            .send()
-            .await?;
-
-        let mut shipyards: Vec<Waypoint> = vec![];
-        match res.json::<ResponseData<Waypoint>>().await? {
-            ResponseData::Data { .. } => unreachable!(),
-            ResponseData::PaginatedData { data, .. } => {
-                // FIXME: Properly handle paginated data!!
-
-                for waypoint in data {
-                    for tr in &waypoint.traits {
-                        if tr.symbol == WaypointTraitSymbols::Shipyard {
-                            shipyards.push(waypoint.clone())
-                        }
-                    }
-                }
-
-                Ok(shipyards)
-            }
-            ResponseData::Error { error } => {
-                Err(SpaceTradersError::SpaceTradersResponseError(error))
-            }
-        }
-    }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-
     use crate::{
         contract::ContractType,
         faction::FactionTraitSymbol,
@@ -396,7 +244,7 @@ mod tests {
             Deposit, EngineSymbol, FlightMode, FrameSymbol, ModuleSymbol, MountSymbol,
             ReactorSymbol, Role, Rotation, ShipStatus,
         },
-        waypoint::{WaypointTraitSymbols, WaypointType},
+        waypoint::WaypointType,
     };
 
     use super::*;
@@ -650,131 +498,5 @@ mod tests {
         let saved_cache = saved_client.cache.unwrap();
         assert_eq!(saved_cache.ships[0].symbol, "TST-RS-02-1");
         check_default_values(saved_cache, callsign);
-    }
-
-    fn check_waypoint_default_valies(waypoint: Waypoint) {
-        assert_eq!(waypoint.system_symbol, "X1-ZA40");
-        assert_eq!(waypoint.symbol, "X1-ZA40-15970B");
-        assert_eq!(waypoint.waypoint_type, WaypointType::Planet);
-        assert_eq!(waypoint.x, 10);
-        assert_eq!(waypoint.y, 0);
-
-        let orbitals = waypoint.orbitals;
-        assert_eq!(orbitals.len(), 3);
-        assert_eq!(orbitals[0].symbol, "X1-ZA40-69371X");
-        assert_eq!(orbitals[1].symbol, "X1-ZA40-97262C");
-        assert_eq!(orbitals[2].symbol, "X1-ZA40-11513D");
-
-        let traits = waypoint.traits;
-        assert_eq!(traits.len(), 5);
-        assert_eq!(traits[0].symbol, WaypointTraitSymbols::Overcrowded);
-        assert_eq!(traits[0].name, "Overcrowded");
-        assert_eq!(traits[0].description, "A waypoint teeming with inhabitants, leading to cramped living conditions and a high demand for resources.");
-        assert_eq!(traits[1].symbol, WaypointTraitSymbols::HighTech);
-        assert_eq!(traits[1].name, "High-Tech");
-        assert_eq!(traits[1].description, "A center of innovation and cutting-edge technology, driving progress and attracting skilled individuals from around the galaxy.");
-        assert_eq!(traits[2].symbol, WaypointTraitSymbols::Bureaucratic);
-        assert_eq!(traits[2].name, "Bureaucratic");
-        assert_eq!(traits[2].description, "A waypoint governed by complex regulations, red tape, and layers of administration, often leading to inefficiencies and frustration.");
-        assert_eq!(traits[3].symbol, WaypointTraitSymbols::Temperate);
-        assert_eq!(traits[3].name, "Temperate");
-        assert_eq!(traits[3].description, "A world with a mild climate and balanced ecosystem, providing a comfortable environment for a variety of life forms and supporting diverse industries.");
-        assert_eq!(traits[4].symbol, WaypointTraitSymbols::Marketplace);
-        assert_eq!(traits[4].name, "Marketplace");
-        assert_eq!(traits[4].description, "A thriving center of commerce where traders from across the galaxy gather to buy, sell, and exchange goods.");
-
-        let chart = waypoint.chart.unwrap();
-        assert_eq!(chart.submitted_by.unwrap(), "COSMIC");
-        let submitted_on: chrono::DateTime<chrono::Utc> =
-            chrono::DateTime::from_str("2023-05-13T17:48:46.579Z").unwrap();
-        assert_eq!(chart.submitted_on, submitted_on);
-
-        assert_eq!(waypoint.faction.unwrap().symbol, FactionSymbol::Cosmic);
-    }
-
-    #[tokio::test]
-    async fn can_query_waypoint() {
-        let client = SpaceTradersClient::load_saved().unwrap();
-
-        let waypoint = client
-            .view_waypoint(
-                "X1-ZA40".try_into().unwrap(),
-                "X1-ZA40-15970B".try_into().unwrap(),
-            )
-            .await
-            .unwrap();
-
-        check_waypoint_default_valies(waypoint);
-    }
-
-    #[test]
-    fn can_list_contracts() {
-        let client = SpaceTradersClient::load_saved().unwrap();
-
-        let contracts = client.contracts().unwrap();
-
-        assert_eq!(contracts.len() as i32, 1);
-
-        let contract = &contracts[0];
-        assert_eq!(contract.id, "clhqpuitz9hq8s60dbv97zf8p");
-        assert_eq!(contract.faction_symbol, FactionSymbol::Cosmic);
-        assert_eq!(contract.contract_type, ContractType::Procurement);
-
-        let terms = &contract.terms;
-        assert_eq!(
-            terms.deadline,
-            chrono::DateTime::<chrono::Utc>::from_str("2023-05-23T20:18:00.791Z").unwrap()
-        );
-        assert_eq!(terms.payment.on_accepted, 109_980);
-        assert_eq!(terms.payment.on_fulfilled, 439_920);
-
-        let deliver = &terms.deliver[0];
-        assert_eq!(terms.deliver.len(), 1);
-        assert_eq!(deliver.trade_symbol, "IRON_ORE");
-        assert_eq!(deliver.destination_symbol, "X1-ZA40-15970B");
-        assert_eq!(deliver.units_required, 11_700);
-        assert_eq!(deliver.units_fulfilled, 0);
-
-        assert!(!contract.accepted);
-        assert!(!contract.fulfilled);
-        assert_eq!(
-            contract.expiration,
-            chrono::DateTime::<chrono::Utc>::from_str("2023-05-19T20:18:00.791Z").unwrap()
-        );
-    }
-
-    #[tokio::test]
-    async fn can_accept_contract() {
-        let mut client = SpaceTradersClient::new();
-        client
-            .register_callsign(&gen_callsign(), None)
-            .await
-            .unwrap();
-
-        let id = client.contracts().unwrap()[0].id.clone();
-        client.accept_contract(id).await.unwrap();
-
-        let contract = &client.contracts().unwrap()[0];
-        assert!(contract.accepted);
-
-        let credits = 100_000 + contract.terms.payment.on_accepted;
-        assert_eq!(client.agent().unwrap().credits, credits);
-    }
-
-    #[tokio::test]
-    async fn can_find_shipyards() -> STResult<()> {
-        let client = SpaceTradersClient::load_saved()?;
-
-        let shipyards = &client.find_shipyards(client.starting_system()?).await?;
-
-        assert_eq!(shipyards.len(), 1);
-        assert_eq!(shipyards[0].symbol, "X1-ZA40-68707C");
-        assert_eq!(shipyards[0].waypoint_type, WaypointType::OrbitalStation);
-        assert_eq!(shipyards[0].system_symbol, "X1-ZA40");
-        assert_eq!(shipyards[0].x, -44);
-        assert_eq!(shipyards[0].y, -22);
-        assert!(shipyards[0].orbitals.is_empty());
-
-        Ok(())
     }
 }
