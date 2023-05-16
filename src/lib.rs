@@ -67,12 +67,11 @@ pub enum SpaceTradersError {
 
     #[error("UrlParseError: There was an error with parsing the URL: {0}")]
     UrlParseError(String),
-}
 
-#[derive(serde::Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-struct ErrorInnerData {
-    _symbol: Vec<String>,
+    /// The callsign passed to [register_callsign](space_traders_client::SpaceTradersClient::register_callsign) is too
+    /// short or too long.
+    #[error("The contract ID `{0}` does not exist in the current client")]
+    InvalidContractId(String),
 }
 
 #[derive(serde::Deserialize, Debug, thiserror::Error)]
@@ -80,7 +79,7 @@ struct ErrorInnerData {
 pub struct ResponseError {
     code: i32,
     message: String,
-    data: Option<ErrorInnerData>,
+    data: Option<serde_json::Value>,
 }
 
 impl Display for ResponseError {
@@ -96,8 +95,8 @@ impl Display for ResponseError {
 #[serde(rename_all = "camelCase", untagged)]
 pub(crate) enum ResponseData<T> {
     Data { data: T },
-    PaginatedData { data: Vec<T>, meta: Meta },
-    Error(ResponseError),
+    PaginatedData { _data: Vec<T>, _meta: Meta },
+    Error { error: ResponseError },
 }
 
 pub(crate) type STResult<T> = Result<T, SpaceTradersError>;

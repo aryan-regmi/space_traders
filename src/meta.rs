@@ -1,8 +1,8 @@
 use crate::prelude::{BoundedInt, LowerBoundInt};
 
 #[derive(Debug, serde::Deserialize)]
-pub struct Meta {
-    pub(crate) total: i32,
-    pub(crate) limit: BoundedInt<1, 20>,
-    pub(crate) page: LowerBoundInt<1>,
+pub(crate) struct Meta {
+    pub(crate) _total: i32,
+    pub(crate) _limit: BoundedInt<1, 20>,
+    pub(crate) _page: LowerBoundInt<1>,
 }

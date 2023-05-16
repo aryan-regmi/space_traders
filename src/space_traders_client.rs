@@ -5,11 +5,10 @@ use crate::{
     conditional_types::Symbol,
     contract::Contract,
     faction::{Faction, FactionSymbol},
-    meta::Meta,
-    prelude::LowerBoundInt,
+    prelude::Id,
     ship::Ship,
     waypoint::Waypoint,
-    ResponseData, ResponseError, STResult, SpaceTradersError,
+    ResponseData, STResult, SpaceTradersError,
 };
 use std::collections::HashMap;
 
@@ -194,7 +193,9 @@ impl SpaceTradersClient {
                 Ok(())
             }
             ResponseData::PaginatedData { .. } => unreachable!(),
-            ResponseData::Error(e) => Err(SpaceTradersError::SpaceTradersResponseError(e)),
+            ResponseData::Error { error } => {
+                Err(SpaceTradersError::SpaceTradersResponseError(error))
+            }
         }
     }
 
@@ -245,40 +246,81 @@ impl SpaceTradersClient {
         match res.json::<ResponseData<Waypoint>>().await? {
             ResponseData::Data { data } => Ok(data),
             ResponseData::PaginatedData { .. } => unreachable!(),
-            ResponseData::Error(e) => Err(SpaceTradersError::SpaceTradersResponseError(e)),
+            ResponseData::Error { error } => {
+                Err(SpaceTradersError::SpaceTradersResponseError(error))
+            }
         }
     }
 
-    // TODO: Return an iterator that can be `.next()` to the next page
-    pub async fn view_all_contracts(
-        &self,
-        page: LowerBoundInt<1>,
-    ) -> STResult<(Vec<Contract>, Meta)> {
-        use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION};
+    pub fn contracts(&self) -> STResult<&Vec<Contract>> {
+        if let Some(cache) = &self.cache {
+            return Ok(&cache.contracts);
+        }
 
-        const URL: &str = "https://api.spacetraders.io/v2/my/contracts";
+        Err(SpaceTradersError::EmptyCache)
+    }
 
-        let params = [("limit", "20"), ("page", &page.to_string())];
+    pub async fn accept_contract(&mut self, contract_id: Id) -> STResult<()> {
+        use reqwest::header::{
+            HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_LENGTH, CONTENT_TYPE,
+        };
 
-        let url = reqwest::Url::parse_with_params(URL, params)
-            .map_err(|e| SpaceTradersError::UrlParseError(e.to_string()))?;
+        let cache = self.cache.as_mut().unwrap();
+
+        let mut idx: Option<usize> = None;
+        for (i, contract) in cache.contracts.iter_mut().enumerate() {
+            if *contract.id == *contract_id {
+                // Return w/out making API calls if the contract is already accepted
+                if contract.accepted {
+                    return Ok(());
+                } else {
+                    idx = Some(i);
+                    break;
+                }
+            }
+        }
+
+        // The contract id was not found in the cached data
+        if idx.is_none() {
+            return Err(SpaceTradersError::InvalidContractId((*contract_id).clone()));
+        }
+
+        let url = format!(
+            "https://api.spacetraders.io/v2/my/contracts/{}/accept",
+            *contract_id
+        );
 
         let mut headers = HeaderMap::new();
-        headers.insert(ACCEPT, HeaderValue::from_static("application/json"));
         headers.insert(
             AUTHORIZATION,
             HeaderValue::from_str(&format!("Bearer {}", self.token.as_ref().unwrap()))
                 .map_err(SpaceTradersError::ReqwestHeaderError)?,
         );
+        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+        headers.insert(CONTENT_LENGTH, HeaderValue::from_static("0"));
 
         // Send request
-        let res = self.client.get(url).headers(headers).send().await?;
+        let res = self.client.post(url).headers(headers).send().await?;
 
-        match res.json::<ResponseData<Contract>>().await? {
-            ResponseData::Data { .. } => unreachable!(),
-            ResponseData::PaginatedData { data, meta } => Ok((data, meta)),
-            ResponseData::Error(e) => Err(SpaceTradersError::SpaceTradersResponseError(e)),
+        #[derive(Debug, serde::Deserialize)]
+        struct AcceptContractResponse {
+            #[serde(rename = "agent")]
+            _agent: Agent,
+            #[serde(rename = "contract")]
+            _contract: Contract,
         }
+
+        if let ResponseData::Error { error } =
+            res.json::<ResponseData<AcceptContractResponse>>().await?
+        {
+            return Err(SpaceTradersError::SpaceTradersResponseError(error));
+        }
+
+        // Find the contract with the given id, and set accepted to true
+        cache.contracts[idx.unwrap()].accepted = true;
+        cache.agent.credits += cache.contracts[idx.unwrap()].terms.payment.on_accepted;
+
+        Ok(())
     }
 }
 
@@ -545,24 +587,11 @@ mod tests {
         assert!(saved_client.token_set);
 
         let saved_cache = saved_client.cache.unwrap();
-        dbg!(&saved_cache.ship.symbol);
         assert_eq!(*saved_cache.ship.symbol, "TST-RS-01-1");
         check_default_values(saved_cache, callsign);
     }
 
-    #[tokio::test]
-    async fn can_query_waypoint() {
-        let client = SpaceTradersClient::load_saved().unwrap();
-
-        // X1-ZA40-15970B
-        let waypoint = client
-            .view_waypoint(
-                "X1-ZA40".try_into().unwrap(),
-                "X1-ZA40-15970B".try_into().unwrap(),
-            )
-            .await
-            .unwrap();
-
+    fn check_waypoint_default_valies(waypoint: Waypoint) {
         assert_eq!(*waypoint.system_symbol, "X1-ZA40");
         assert_eq!(*waypoint.symbol, "X1-ZA40-15970B");
         assert_eq!(waypoint.waypoint_type, WaypointType::Planet);
@@ -603,15 +632,71 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn can_list_contracts() {
+    async fn can_query_waypoint() {
         let client = SpaceTradersClient::load_saved().unwrap();
 
-        let (contracts, meta) = client
-            .view_all_contracts(LowerBoundInt::new(1).unwrap())
+        let waypoint = client
+            .view_waypoint(
+                "X1-ZA40".try_into().unwrap(),
+                "X1-ZA40-15970B".try_into().unwrap(),
+            )
             .await
             .unwrap();
 
-        dbg!(meta);
-        dbg!(contracts);
+        check_waypoint_default_valies(waypoint);
+    }
+
+    #[test]
+    fn can_list_contracts() {
+        let client = SpaceTradersClient::load_saved().unwrap();
+
+        let contracts = client.contracts().unwrap();
+
+        assert_eq!(contracts.len() as i32, 1);
+
+        let contract = &contracts[0];
+        assert_eq!(*contract.id, "clhpc27i80iows60dpq9vdgew");
+        assert_eq!(contract.faction_symbol, FactionSymbol::Cosmic);
+        assert_eq!(contract.contract_type, ContractType::Procurement);
+
+        let terms = &contract.terms;
+        assert_eq!(
+            terms.deadline,
+            chrono::DateTime::<chrono::Utc>::from_str("2023-05-22T21:04:18.559Z").unwrap()
+        );
+        assert_eq!(terms.payment.on_accepted, 138000);
+        assert_eq!(terms.payment.on_fulfilled, 552000);
+
+        let deliver = &terms.deliver[0];
+        assert_eq!(terms.deliver.len(), 1);
+        assert_eq!(*deliver.trade_symbol, "IRON_ORE");
+        assert_eq!(*deliver.destination_symbol, "X1-ZA40-15970B");
+        assert_eq!(deliver.units_required, 15000);
+        assert_eq!(deliver.units_fulfilled, 0);
+
+        assert!(!contract.accepted);
+        assert!(!contract.fulfilled);
+        assert_eq!(
+            contract.expiration,
+            chrono::DateTime::<chrono::Utc>::from_str("2023-05-18T21:04:18.559Z").unwrap()
+        );
+    }
+
+    #[tokio::test]
+    async fn can_accept_contract() {
+        let mut client = SpaceTradersClient::new();
+        client
+            .register_callsign(&gen_callsign(), None)
+            .await
+            .unwrap();
+
+        let id = client.contracts().unwrap()[0].id.clone();
+        client.accept_contract(id).await.unwrap();
+
+        let contract = &client.contracts().unwrap()[0];
+        assert!(contract.accepted);
+
+        let credits = 100_000 + contract.terms.payment.on_accepted;
+        assert_eq!(client.agent().unwrap().credits, credits);
     }
 }
