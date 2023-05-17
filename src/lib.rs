@@ -56,8 +56,8 @@ pub enum SpaceTradersError {
     SerdeJsonError(#[from] serde_json::Error),
 
     /// The client data was not populated correctly.
-    #[error("EmptyCache: The cache should not be empty if the client was initalized properly")]
-    EmptyCache,
+    #[error("EmptyCache: The cache should not be empty if the client was initalized properly\ndata: {:?}", 0)]
+    EmptyCache(Option<String>),
 
     /// The format of the savefile was incorrect, or the savefile is corrupted.
     #[error("InvalidSave: There was an error reading the savefile: {0}")]

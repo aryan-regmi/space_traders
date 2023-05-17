@@ -58,7 +58,10 @@ impl SpaceTradersClient {
             HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_LENGTH, CONTENT_TYPE,
         };
 
-        let cache = self.cache.as_mut().ok_or(SpaceTradersError::EmptyCache)?;
+        let cache = self
+            .cache
+            .as_mut()
+            .ok_or(SpaceTradersError::EmptyCache(None))?;
 
         let mut idx: Option<usize> = None; // Stores index of the given contract
         for (i, contract) in cache.contracts.iter_mut().enumerate() {

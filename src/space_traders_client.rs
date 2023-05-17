@@ -113,7 +113,7 @@ impl SpaceTradersClient {
             );
             cached_data.write_all(file_contents.as_bytes())?;
         } else {
-            return Err(SpaceTradersError::EmptyCache);
+            return Err(SpaceTradersError::EmptyCache(None));
         }
 
         Ok(())
@@ -203,7 +203,7 @@ impl SpaceTradersClient {
             return Ok(&cache.agent);
         }
 
-        Err(SpaceTradersError::EmptyCache)
+        Err(SpaceTradersError::EmptyCache(None))
     }
 
     /// Get a mutable reference to the [Agent] associated with the current client.
@@ -212,7 +212,7 @@ impl SpaceTradersClient {
             return Ok(&mut cache.agent);
         }
 
-        Err(SpaceTradersError::EmptyCache)
+        Err(SpaceTradersError::EmptyCache(None))
     }
 
     /// Get all contracts associated w/ the current agent.
@@ -221,14 +221,14 @@ impl SpaceTradersClient {
             return Ok(&cache.contracts);
         }
 
-        Err(SpaceTradersError::EmptyCache)
+        Err(SpaceTradersError::EmptyCache(None))
     }
 
     pub fn starting_system(&self) -> STResult<Symbol> {
         if let Some(cache) = &self.cache {
             Ok(cache.ships[0].nav.system_symbol.clone())
         } else {
-            Err(SpaceTradersError::EmptyCache)
+            Err(SpaceTradersError::EmptyCache(None))
         }
     }
 }

@@ -8,7 +8,9 @@ use crate::{
     ResponseData, STResult, SpaceTradersError,
 };
 use chrono::{DateTime, Utc};
-use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION, CONTENT_TYPE};
+use reqwest::header::{
+    HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION, CONTENT_LENGTH, CONTENT_TYPE,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
@@ -512,6 +514,10 @@ impl SpaceTradersClient {
                 if let Some(cache) = &mut self.cache {
                     cache.agent = data.agent;
                     cache.ships.push(data.ship)
+                } else {
+                    return Err(SpaceTradersError::EmptyCache(Some(
+                        serde_json::json!(data.transactions).to_string(),
+                    )));
                 }
 
                 Ok(data.transactions)
@@ -521,6 +527,7 @@ impl SpaceTradersClient {
         }
     }
 
+    // TODO: If the ship is already docked, dont make API call!
     pub async fn dock_ship(&self, ship_symbol: &Symbol) -> STResult<Nav> {
         // Check if ship_symbol exists first
         if let Some(cache) = &self.cache {
@@ -530,7 +537,7 @@ impl SpaceTradersClient {
                 ));
             }
         } else {
-            return Err(SpaceTradersError::EmptyCache);
+            return Err(SpaceTradersError::EmptyCache(None));
         }
 
         let url = format!(
@@ -542,18 +549,27 @@ impl SpaceTradersClient {
         headers.insert(
             AUTHORIZATION,
             HeaderValue::from_str(&format!(
-                "bearer {}",
+                "Bearer {}",
                 self.token.as_ref().ok_or(SpaceTradersError::TokenNotSet)?
             ))?,
         );
         headers.insert(ACCEPT, HeaderValue::from_static("application/json"));
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+        headers.insert(CONTENT_LENGTH, HeaderValue::from_static("0"));
 
         // Send request
         let res = self.client.post(url).headers(headers).send().await?;
 
-        match res.json::<ResponseData<Nav>>().await? {
-            ResponseData::Data { data } => Ok(data),
+        // dbg!(res.json::<serde_json::Value>().await?);
+        // todo!();
+
+        #[derive(Debug, Deserialize, Serialize)]
+        struct DockShipResponse {
+            nav: Nav,
+        }
+
+        match res.json::<ResponseData<DockShipResponse>>().await? {
+            ResponseData::Data { data } => Ok(data.nav),
             ResponseData::PaginatedData { .. } => unreachable!(),
             ResponseData::Error { error } => Err(SpaceTradersError::ResponseError(error)),
         }
@@ -618,7 +634,11 @@ mod tests {
 
         let ship = &client.cache.as_ref().unwrap().ships[0];
 
-        client.dock_ship(&ship.symbol).await?;
+        let nav = client.dock_ship(&ship.symbol).await?;
+
+        assert_eq!(nav.status, ShipStatus::Docked);
+        assert_eq!(nav.system_symbol, ship.nav.system_symbol);
+        assert_eq!(nav.waypoint_symbol, ship.nav.waypoint_symbol);
 
         Ok(())
     }
