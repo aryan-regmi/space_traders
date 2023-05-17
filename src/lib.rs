@@ -65,15 +65,16 @@ pub enum SpaceTradersError {
 
     /// Errors from the SpaceTraders API.
     #[error("SpaceTradersResponseError: There was an error with the API response: {0}")]
-    SpaceTradersResponseError(#[from] ResponseError),
+    ResponseError(#[from] ResponseError),
 
     #[error("UrlParseError: There was an error with parsing the URL: {0}")]
     UrlParseError(String),
 
-    /// The callsign passed to [register_callsign](space_traders_client::SpaceTradersClient::register_callsign) is too
-    /// short or too long.
     #[error("The contract ID `{0}` does not exist in the current client")]
     InvalidContractId(String),
+
+    #[error("The ship `{0}` does not exist in the current client")]
+    InvalidShipSymbol(String),
 }
 
 #[derive(serde::Deserialize, Debug, thiserror::Error)]

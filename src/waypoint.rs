@@ -160,55 +160,7 @@ impl SpaceTradersClient {
         match res.json::<ResponseData<Waypoint>>().await? {
             ResponseData::Data { data } => Ok(data),
             ResponseData::PaginatedData { .. } => unreachable!(),
-            ResponseData::Error { error } => {
-                Err(SpaceTradersError::SpaceTradersResponseError(error))
-            }
-        }
-    }
-
-    // TODO: Cache shipyards?
-    //
-    /// Finds a shipyard in the system.
-    pub async fn find_shipyards(&self, system_symbol: Symbol) -> STResult<Vec<Waypoint>> {
-        use reqwest::header::{HeaderValue, AUTHORIZATION};
-
-        let url = format!(
-            "https://api.spacetraders.io/v2/systems/{}/waypoints",
-            system_symbol
-        );
-
-        let header = (
-            AUTHORIZATION,
-            HeaderValue::from_str(&format!("Bearer {}", self.token.as_ref().unwrap())).unwrap(),
-        );
-
-        // Send request
-        let res = self
-            .client
-            .get(url)
-            .header(header.0, header.1)
-            .send()
-            .await?;
-
-        let mut shipyards: Vec<Waypoint> = vec![];
-        match res.json::<ResponseData<Waypoint>>().await? {
-            ResponseData::Data { .. } => unreachable!(),
-            ResponseData::PaginatedData { data, .. } => {
-                // FIXME: Properly handle paginated data!!
-
-                for waypoint in data {
-                    for tr in &waypoint.traits {
-                        if tr.symbol == WaypointTraitSymbols::Shipyard {
-                            shipyards.push(waypoint.clone())
-                        }
-                    }
-                }
-
-                Ok(shipyards)
-            }
-            ResponseData::Error { error } => {
-                Err(SpaceTradersError::SpaceTradersResponseError(error))
-            }
+            ResponseData::Error { error } => Err(SpaceTradersError::ResponseError(error)),
         }
     }
 }
@@ -272,22 +224,5 @@ mod tests {
             .unwrap();
 
         check_waypoint_default_valies(waypoint);
-    }
-
-    #[tokio::test]
-    async fn can_find_shipyards() -> STResult<()> {
-        let client = SpaceTradersClient::load_saved()?;
-
-        let shipyards = &client.find_shipyards(client.starting_system()?).await?;
-
-        assert_eq!(shipyards.len(), 1);
-        assert_eq!(shipyards[0].symbol, "X1-ZA40-68707C");
-        assert_eq!(shipyards[0].waypoint_type, WaypointType::OrbitalStation);
-        assert_eq!(shipyards[0].system_symbol, "X1-ZA40");
-        assert_eq!(shipyards[0].x, -44);
-        assert_eq!(shipyards[0].y, -22);
-        assert!(shipyards[0].orbitals.is_empty());
-
-        Ok(())
     }
 }

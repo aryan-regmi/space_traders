@@ -193,9 +193,7 @@ impl SpaceTradersClient {
                 Ok(())
             }
             ResponseData::PaginatedData { .. } => unreachable!(),
-            ResponseData::Error { error } => {
-                Err(SpaceTradersError::SpaceTradersResponseError(error))
-            }
+            ResponseData::Error { error } => Err(SpaceTradersError::ResponseError(error)),
         }
     }
 
@@ -488,15 +486,17 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn can_save_and_load_client() {
-        let callsign = "TST-RS-02";
+    async fn can_save_and_load_client() -> STResult<()> {
+        let callsign = "TST-RS-04";
 
-        let saved_client = SpaceTradersClient::load_saved().unwrap();
+        let saved_client = SpaceTradersClient::load_saved()?;
 
         assert!(saved_client.token_set);
 
         let saved_cache = saved_client.cache.unwrap();
-        assert_eq!(saved_cache.ships[0].symbol, "TST-RS-02-1");
+        assert_eq!(saved_cache.ships[0].symbol, "TST-RS-04-1");
         check_default_values(saved_cache, callsign);
+
+        Ok(())
     }
 }

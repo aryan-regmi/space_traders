@@ -62,7 +62,7 @@ impl SpaceTradersClient {
 
         let mut idx: Option<usize> = None; // Stores index of the given contract
         for (i, contract) in cache.contracts.iter_mut().enumerate() {
-            if contract.id == contract_id {
+            if contract.id == *contract_id {
                 // Return w/out making API calls if the contract is already accepted
                 if contract.accepted {
                     return Ok(());
@@ -108,7 +108,7 @@ impl SpaceTradersClient {
         if let ResponseData::Error { error } =
             res.json::<ResponseData<AcceptContractResponse>>().await?
         {
-            return Err(SpaceTradersError::SpaceTradersResponseError(error));
+            return Err(SpaceTradersError::ResponseError(error));
         }
 
         // Find the contract with the given id, and set accepted to true
@@ -141,30 +141,30 @@ mod tests {
         assert_eq!(contracts.len() as i32, 1);
 
         let contract = &contracts[0];
-        assert_eq!(contract.id, "clhqpuitz9hq8s60dbv97zf8p");
+        assert_eq!(contract.id, "clhr6zx0r07s2s60daxqce7b1");
         assert_eq!(contract.faction_symbol, FactionSymbol::Cosmic);
         assert_eq!(contract.contract_type, ContractType::Procurement);
 
         let terms = &contract.terms;
         assert_eq!(
             terms.deadline,
-            chrono::DateTime::<chrono::Utc>::from_str("2023-05-23T20:18:00.791Z").unwrap()
+            chrono::DateTime::<chrono::Utc>::from_str("2023-05-24T04:18:05.930Z").unwrap()
         );
-        assert_eq!(terms.payment.on_accepted, 109_980);
-        assert_eq!(terms.payment.on_fulfilled, 439_920);
+        assert_eq!(terms.payment.on_accepted, 100_280);
+        assert_eq!(terms.payment.on_fulfilled, 401_120);
 
         let deliver = &terms.deliver[0];
         assert_eq!(terms.deliver.len(), 1);
         assert_eq!(deliver.trade_symbol, "IRON_ORE");
         assert_eq!(deliver.destination_symbol, "X1-ZA40-15970B");
-        assert_eq!(deliver.units_required, 11_700);
+        assert_eq!(deliver.units_required, 10_900);
         assert_eq!(deliver.units_fulfilled, 0);
 
         assert!(!contract.accepted);
         assert!(!contract.fulfilled);
         assert_eq!(
             contract.expiration,
-            chrono::DateTime::<chrono::Utc>::from_str("2023-05-19T20:18:00.791Z").unwrap()
+            chrono::DateTime::<chrono::Utc>::from_str("2023-05-20T04:18:05.930Z").unwrap()
         );
     }
 
