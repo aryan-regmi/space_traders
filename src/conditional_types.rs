@@ -136,55 +136,46 @@ pub mod ints {
             self.0 as isize == *other
         }
     }
-
     impl<const MIN: i64> PartialEq<usize> for LowerBoundInt<MIN> {
         fn eq(&self, other: &usize) -> bool {
             self.0 as usize == *other
         }
     }
-
     impl<const MIN: i64> PartialEq<i64> for LowerBoundInt<MIN> {
         fn eq(&self, other: &i64) -> bool {
             self.0 == *other
         }
     }
-
     impl<const MIN: i64> PartialEq<i32> for LowerBoundInt<MIN> {
         fn eq(&self, other: &i32) -> bool {
             self.0 as i32 == *other
         }
     }
-
     impl<const MIN: i64> PartialEq<i16> for LowerBoundInt<MIN> {
         fn eq(&self, other: &i16) -> bool {
             self.0 as i16 == *other
         }
     }
-
     impl<const MIN: i64> PartialEq<i8> for LowerBoundInt<MIN> {
         fn eq(&self, other: &i8) -> bool {
             self.0 as i8 == *other
         }
     }
-
     impl<const MIN: i64> PartialEq<u64> for LowerBoundInt<MIN> {
         fn eq(&self, other: &u64) -> bool {
             self.0 as u64 == *other
         }
     }
-
     impl<const MIN: i64> PartialEq<u32> for LowerBoundInt<MIN> {
         fn eq(&self, other: &u32) -> bool {
             self.0 as u32 == *other
         }
     }
-
     impl<const MIN: i64> PartialEq<u16> for LowerBoundInt<MIN> {
         fn eq(&self, other: &u16) -> bool {
             self.0 as u16 == *other
         }
     }
-
     impl<const MIN: i64> PartialEq<u8> for LowerBoundInt<MIN> {
         fn eq(&self, other: &u8) -> bool {
             self.0 as u8 == *other
@@ -250,55 +241,46 @@ pub mod ints {
             self.0 as isize == *other
         }
     }
-
     impl<const MAX: i64> PartialEq<usize> for UpperBoundInt<MAX> {
         fn eq(&self, other: &usize) -> bool {
             self.0 as usize == *other
         }
     }
-
     impl<const MAX: i64> PartialEq<i64> for UpperBoundInt<MAX> {
         fn eq(&self, other: &i64) -> bool {
             self.0 == *other
         }
     }
-
     impl<const MAX: i64> PartialEq<i32> for UpperBoundInt<MAX> {
         fn eq(&self, other: &i32) -> bool {
             self.0 as i32 == *other
         }
     }
-
     impl<const MAX: i64> PartialEq<i16> for UpperBoundInt<MAX> {
         fn eq(&self, other: &i16) -> bool {
             self.0 as i16 == *other
         }
     }
-
     impl<const MAX: i64> PartialEq<i8> for UpperBoundInt<MAX> {
         fn eq(&self, other: &i8) -> bool {
             self.0 as i8 == *other
         }
     }
-
     impl<const MAX: i64> PartialEq<u64> for UpperBoundInt<MAX> {
         fn eq(&self, other: &u64) -> bool {
             self.0 as u64 == *other
         }
     }
-
     impl<const MAX: i64> PartialEq<u32> for UpperBoundInt<MAX> {
         fn eq(&self, other: &u32) -> bool {
             self.0 as u32 == *other
         }
     }
-
     impl<const MAX: i64> PartialEq<u16> for UpperBoundInt<MAX> {
         fn eq(&self, other: &u16) -> bool {
             self.0 as u16 == *other
         }
     }
-
     impl<const MAX: i64> PartialEq<u8> for UpperBoundInt<MAX> {
         fn eq(&self, other: &u8) -> bool {
             self.0 as u8 == *other
@@ -369,13 +351,11 @@ pub mod ints {
             self.0 as isize == *other
         }
     }
-
     impl<const MIN: i64, const MAX: i64> PartialEq<usize> for BoundedInt<MIN, MAX> {
         fn eq(&self, other: &usize) -> bool {
             self.0 as usize == *other
         }
     }
-
     impl<const MIN: i64, const MAX: i64> PartialEq<i64> for BoundedInt<MIN, MAX> {
         fn eq(&self, other: &i64) -> bool {
             self.0 == *other

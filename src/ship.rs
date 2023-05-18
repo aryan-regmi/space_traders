@@ -393,57 +393,64 @@ pub struct Shipyard {
     ships: Option<Vec<ShipyardShip>>,
 }
 
+#[derive(Deserialize, Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SurveyDeposit {
+    symbol: Deposit,
+}
+
+#[derive(Deserialize, Debug, Serialize, Clone)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum SurveySize {
+    Small,
+    Moderate,
+    Large,
+}
+
+#[derive(Deserialize, Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Survey {
+    signature: Symbol,
+    symbol: Symbol,
+    deposits: Vec<SurveyDeposit>,
+    expiration: DateTime<Utc>,
+    size: SurveySize,
+}
+
+#[derive(Deserialize, Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Cooldown {
+    ship_symbol: Symbol,
+    total_seconds: NonNegative,
+    remaining_seconds: NonNegative,
+    expiration: DateTime<Utc>,
+}
+
+#[derive(Deserialize, Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct ExtractionYield {
+    symbol: Symbol,
+    units: i32,
+}
+
+#[derive(Deserialize, Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Extraction {
+    ship_symbol: Symbol,
+    #[serde(rename = "yield")]
+    yield_: ExtractionYield,
+}
+
 impl SpaceTradersClient {
-    // TODO: Cache shipyards
-    //
-    /// Finds a shipyard in the system.
-    pub async fn find_shipyards(&self, system_symbol: Symbol) -> STResult<Vec<Waypoint>> {
-        let url = format!(
-            "https://api.spacetraders.io/v2/systems/{}/waypoints",
-            system_symbol
-        );
-
-        let header = (
-            AUTHORIZATION,
-            HeaderValue::from_str(&format!(
-                "Bearer {}",
-                self.token.as_ref().ok_or(SpaceTradersError::TokenNotSet)?
-            ))?,
-        );
-
-        // Send request
-        let res = self
-            .client
-            .get(url)
-            .header(header.0, header.1)
-            .send()
-            .await?;
-
-        let mut shipyard_waypoints: Vec<Waypoint> = vec![];
-        match res.json::<ResponseData<Waypoint>>().await? {
-            ResponseData::Data { .. } => unreachable!(),
-            ResponseData::PaginatedData { data, .. } => {
-                // FIXME: Properly handle paginated data!!
-
-                for waypoint in data {
-                    for tr in &waypoint.traits {
-                        if tr.symbol == WaypointTraitSymbols::Shipyard {
-                            shipyard_waypoints.push(waypoint.clone())
-                        }
-                    }
-                }
-
-                Ok(shipyard_waypoints)
-            }
-            ResponseData::Error { error } => Err(SpaceTradersError::ResponseError(error)),
-        }
-    }
-
-    /// NOTE: A ship needs to be at the waypoint inorder to see the ships that are for sale.
-    pub async fn view_shipyard(&self, shipyard_waypoint: &Waypoint) -> STResult<Shipyard> {
+    /// NOTE: A ship needs to be docked at the waypoint to see the ships that are for sale.
+    pub async fn view_shipyard(
+        &self,
+        system_symbol: &Symbol,
+        waypoint_symbol: &Symbol,
+    ) -> STResult<Shipyard> {
         let url = format!(
             "https://api.spacetraders.io/v2/systems/{}/waypoints/{}/shipyard",
-            shipyard_waypoint.system_symbol, shipyard_waypoint.symbol
+            system_symbol, waypoint_symbol
         );
 
         let mut headers = HeaderMap::with_capacity(2);
@@ -515,6 +522,8 @@ impl SpaceTradersClient {
                     cache.agent = data.agent;
                     cache.ships.push(data.ship)
                 } else {
+                    // The ship is already purchased at this point, so the transaction is returned
+                    // as a part of the error
                     return Err(SpaceTradersError::EmptyCache(Some(
                         serde_json::json!(data.transactions).to_string(),
                     )));
@@ -527,17 +536,11 @@ impl SpaceTradersClient {
         }
     }
 
-    // TODO: If the ship is already docked, dont make API call!
     pub async fn dock_ship(&self, ship_symbol: &Symbol) -> STResult<Nav> {
-        // Check if ship_symbol exists first
-        if let Some(cache) = &self.cache {
-            if !cache.ships.iter().any(|s| s.symbol == *ship_symbol) {
-                return Err(SpaceTradersError::InvalidShipSymbol(
-                    ship_symbol.to_string(),
-                ));
-            }
-        } else {
-            return Err(SpaceTradersError::EmptyCache(None));
+        //  If the ship is already docked, dont make API call
+        let ship = self.get_ship(ship_symbol)?;
+        if ship.nav.status == ShipStatus::Docked {
+            return Ok(ship.nav.clone());
         }
 
         let url = format!(
@@ -575,14 +578,138 @@ impl SpaceTradersClient {
         }
     }
 
-    #[allow(unused)]
-    pub fn orbit_ship(&self, ship_symbol: Symbol) {
-        todo!()
+    pub async fn orbit_ship(&self, ship_symbol: &Symbol) -> STResult<Nav> {
+        //  If the ship is already docked, dont make API call
+        let ship = self.get_ship(ship_symbol)?;
+        if ship.nav.status == ShipStatus::InOrbit {
+            return Ok(ship.nav.clone());
+        }
+
+        let url = format!(
+            "https://api.spacetraders.io/v2/my/ships/{}/orbit",
+            ship_symbol
+        );
+
+        let mut headers = HeaderMap::with_capacity(2);
+        headers.insert(
+            AUTHORIZATION,
+            HeaderValue::from_str(&format!(
+                "Bearer {}",
+                self.token.as_ref().ok_or(SpaceTradersError::TokenNotSet)?
+            ))?,
+        );
+        headers.insert(ACCEPT, HeaderValue::from_static("application/json"));
+        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+        headers.insert(CONTENT_LENGTH, HeaderValue::from_static("0"));
+
+        // Send request
+        let res = self.client.post(url).headers(headers).send().await?;
+
+        #[derive(Debug, Deserialize, Serialize)]
+        struct DockShipResponse {
+            nav: Nav,
+        }
+
+        match res.json::<ResponseData<DockShipResponse>>().await? {
+            ResponseData::Data { data } => Ok(data.nav),
+            ResponseData::PaginatedData { .. } => unreachable!(),
+            ResponseData::Error { error } => Err(SpaceTradersError::ResponseError(error)),
+        }
     }
 
-    #[allow(unused)]
-    pub fn extract_resource(&self, ship_symbol: Symbol) {
-        todo!()
+    pub async fn extract_resources(
+        &mut self,
+        ship_symbol: &Symbol,
+        survey: Option<Survey>,
+    ) -> STResult<(Cooldown, Extraction)> {
+        // Check if ship_symbol exists first
+        self.get_ship(ship_symbol)?;
+
+        let url = format!(
+            "https://api.spacetraders.io/v2/my/ships/{}/extract",
+            ship_symbol
+        );
+
+        let mut headers = HeaderMap::with_capacity(2);
+        headers.insert(
+            AUTHORIZATION,
+            HeaderValue::from_str(&format!(
+                "Bearer {}",
+                self.token.as_ref().ok_or(SpaceTradersError::TokenNotSet)?
+            ))?,
+        );
+        headers.insert(ACCEPT, HeaderValue::from_static("application/json"));
+        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+        headers.insert(CONTENT_LENGTH, HeaderValue::from_static("0"));
+
+        // Send request
+        let res = match survey {
+            // Send survey as body if there is one
+            Some(survey) => {
+                self.client
+                    .post(url)
+                    .headers(headers)
+                    .json(&survey)
+                    .send()
+                    .await?
+            }
+            None => self.client.post(url).headers(headers).send().await?,
+        };
+
+        #[derive(Debug, Deserialize, Serialize)]
+        struct ExtractResourceResponse {
+            cooldown: Cooldown,
+            extraction: Extraction,
+            cargo: Cargo,
+        }
+
+        match res.json::<ResponseData<ExtractResourceResponse>>().await? {
+            ResponseData::Data { data } => {
+                // Update the ship's cargo with the new cargo
+                let ship = self.get_ship_mut(ship_symbol)?;
+                ship.cargo = data.cargo;
+
+                Ok((data.cooldown, data.extraction))
+            }
+            ResponseData::PaginatedData { .. } => unreachable!(),
+            ResponseData::Error { error } => Err(SpaceTradersError::ResponseError(error)),
+        }
+    }
+
+    fn get_ship_mut(&mut self, ship_symbol: &Symbol) -> STResult<&mut Ship> {
+        match &mut self.cache {
+            Some(cache) => {
+                for ship in &mut cache.ships {
+                    if ship.symbol == *ship_symbol {
+                        return Ok(ship);
+                    }
+                }
+
+                Err(SpaceTradersError::InvalidShipSymbol(format!(
+                    "ShipNotFound: {}",
+                    ship_symbol
+                )))
+            }
+            None => Err(SpaceTradersError::EmptyCache(None)),
+        }
+    }
+
+    fn get_ship(&self, ship_symbol: &Symbol) -> STResult<&Ship> {
+        match &self.cache {
+            Some(cache) => {
+                for ship in &cache.ships {
+                    if ship.symbol == *ship_symbol {
+                        return Ok(ship);
+                    }
+                }
+
+                Err(SpaceTradersError::InvalidShipSymbol(format!(
+                    "ShipNotFound: {}",
+                    ship_symbol
+                )))
+            }
+            None => Err(SpaceTradersError::EmptyCache(None)),
+        }
     }
 }
 
@@ -591,52 +718,46 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn can_find_shipyards_in_system() -> STResult<()> {
-        let client = SpaceTradersClient::load_saved()?;
-
-        let shipyards = &client.find_shipyards(client.starting_system()?).await?;
-
-        assert_eq!(shipyards.len(), 1);
-        assert_eq!(shipyards[0].symbol, "X1-ZA40-68707C");
-        assert_eq!(shipyards[0].waypoint_type, WaypointType::OrbitalStation);
-        assert_eq!(shipyards[0].system_symbol, "X1-ZA40");
-        assert_eq!(shipyards[0].x, -44);
-        assert_eq!(shipyards[0].y, -22);
-        assert!(shipyards[0].orbitals.is_empty());
-
-        Ok(())
-    }
-
-    #[tokio::test]
     async fn can_view_shipyard() -> STResult<()> {
         let client = SpaceTradersClient::load_saved()?;
 
-        let shipyard_waypoints = &client.find_shipyards(client.starting_system()?).await?;
+        let system_symbol = Symbol::new("X1-ZA40").unwrap();
+        let waypoint_symbol = Symbol::new("X1-ZA40-68707C").unwrap();
 
-        let shipyard = client.view_shipyard(&shipyard_waypoints[0]).await?;
+        let shipyard = client
+            .view_shipyard(&system_symbol, &waypoint_symbol)
+            .await?;
 
-        assert_eq!(shipyard.symbol, shipyard_waypoints[0].symbol);
+        dbg!(&shipyard);
+
+        assert_eq!(shipyard.symbol, "X1-ZA40-68707C");
         assert_eq!(shipyard.ship_types.len(), 4);
-        assert_eq!(shipyard.ship_types[0].type_, ShipType::ShipProbe);
         assert_eq!(
-            shipyard.ship_types[1].type_,
+            shipyard.ship_types[0].type_,
             ShipType::ShipRefiningFreighter
         );
+        assert_eq!(shipyard.ship_types[1].type_, ShipType::ShipProbe);
         assert_eq!(shipyard.ship_types[2].type_, ShipType::ShipOreHound);
         assert_eq!(shipyard.ship_types[3].type_, ShipType::ShipMiningDrone);
+        assert!(shipyard.transactions.is_none());
+        assert!(shipyard.ships.is_none());
 
         Ok(())
     }
 
     #[tokio::test]
-    async fn can_dock_ship() -> STResult<()> {
+    async fn can_dock_and_orbit_ship() -> STResult<()> {
         let client = SpaceTradersClient::load_saved()?;
 
         let ship = &client.cache.as_ref().unwrap().ships[0];
 
         let nav = client.dock_ship(&ship.symbol).await?;
-
         assert_eq!(nav.status, ShipStatus::Docked);
+        assert_eq!(nav.system_symbol, ship.nav.system_symbol);
+        assert_eq!(nav.waypoint_symbol, ship.nav.waypoint_symbol);
+
+        let nav = client.orbit_ship(&ship.symbol).await?;
+        assert_eq!(nav.status, ShipStatus::InOrbit);
         assert_eq!(nav.system_symbol, ship.nav.system_symbol);
         assert_eq!(nav.waypoint_symbol, ship.nav.waypoint_symbol);
 
